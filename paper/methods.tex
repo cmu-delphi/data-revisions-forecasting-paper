@@ -1,0 +1,113 @@
+\section{Methods}
+In this section, we propose a non-parametric model, Delphi-Revision Forecast (Delphi-RF), based on quantile regression for capturing the data revision dynamics.
+Recall that $L$ is the target lag, for a random variable $Y_{itl}$ describing the most up-to-date value for location $i$ and reference date $t$ as of report date $t+l$, $Y_{itL}$ is the corresponding target value. We use the notation $Q_{Y_{itL}}^{\tau}$ to represent the $\tau$th quantile of $Y_{itL}$ and $F_{Y_{itL}}(y)$ to represent the cumulative distribution.
+$$Q_{Y_{itL}}^{\tau} = \inf \{y: F_{Y_{itL}}(y) \geq \tau\}, \tau > 0$$
+
+Given the potential non-linear effects of calendar factors such as day-of-week and week-of-month, and motivated by reducing the relative error between our estimate and the target, we chose to apply a multiplicative model to derive conditional quantile estimates of the log target. 
+
+To prevent invalid values when count reports are zero, we apply a logarithmic transformation (natural logarithm) defined as $f(x) = log(x + 1)$ to all relevant quantities. Since $f(\cdot)$ is monotonically increasing, $ Q_{f(Y_{itL})}^{\tau} = f(Q_{Y_{itL}}^{\tau})$. 
+
+At any given estimation date $s_0$, our goal is to make distributional estimates of $Y_{itL}$ for all $t \in [s_0-L, s_0)$ based on data that is available by date $s_0$. To simplify notation, we use $f(Y_{itL})|X_{itl}$ to represent $f(Y_{itL})$ as conditioned on the feature vector $X_{itl}$, which is based on $\{Y_{itl}\}_{t+l < s_0}$. Therefore, our model is 
+\begin{align*} 
+Q_{f(Y_{itL})|X_{itl}}^{\tau} &=  X_{itl}\beta^{\tau}
+\end{align*}
+
+We incorporate features to account for week-of-month effects based on report dates, as well as day-of-week effects based on both report dates and reference dates. The indicator \( \mathbf{I}_{\text{first-week}(t)} \) is used to determine whether a given date \( t \) falls within the first week of a month, where each week begins on a Sunday. If date \( t \) corresponds to the last days of a month and coincides with the fifth week of the current month and the first week of the subsequent month, it is still classified as part of the first week of the month. To capture day-of-week effects, we define the vector \( \mathbf{e}_{wd(t)} \) as a one-hot encoded vector, where the first element is set to 0 if \( t \) falls on a Monday, 1 if \( t \) corresponds to a weekend, and 2 otherwise. To avoid identification issues, only two of these indicators are included as covariate columns in the dataset.
+
+
+We utilize two features to represent disease activity levels. Let \( \widetilde{Y}_{itl} \) denote the 7-day moving average of values reported for the same report date \( t+l \), defined as  
+
+\[
+\widetilde{Y}_{itl} = \sum_{v=0}^{6} Y_{i(t-v)(l+v)}
+\]
+
+Given the significant skewness in \( Y_{itl} \), we apply a square root transformation to improve the linearity between the quantiles and the transformed variable. We define a one-hot encoded vector \( \mathbf{e}_{\sqrt{Y_{itl}}} \), where the elements correspond to four uniform-width bins of \( \sqrt{Y_{itl}} \) based on its empirical distribution in the training dataset. To avoid identification issues, only three of these indicators are included as covariate columns in the dataset.
+
+
+To capture changes in revision patterns, we introduce two extra features: 
+\begin{align*} 
+&f(\widetilde{Y}_{i(t-1)l_{\text{min}}}) \\
+&f(\widetilde{Y}_{i(t-7)l_{\text{min}}}) 
+\end{align*}
+The three features, together with the lagged terms for disease activity levels, capture the difference between the 7-day average of the current reports and the 7-day average of their initial release, serving as an indicator of whether the revision pattern has changed.
+
+
+Now, the full model can be expressed as:
+\begin{align*} 
+Q_{f(Y_{itL}))|X_{itl}}^{\tau} &=  X_{itl}\beta^{\tau}\\
+& = \beta_0^{\tau}  + \beta_{1}^{\tau}\mathbf{I}_{\text{first-week}(t+l)} &(\text{Intercept, week-of-month effects})\\
+& + \beta_{2:3}^{\tau}\mathbf{e}_{wd(t)} + \beta_{4:5}^{\tau}\mathbf{e}_{wd(t+l)}&(\text{Day-of-week effects}) \\ 
+& + \beta_{6}^{\tau}f(\widetilde{Y}_{itl}) + \beta_{7:9}^{\tau}\mathbf{e}_{\sqrt{\widetilde{Y}_{itl}}} &(\text{Disease activity level}) \\ 
+& + \beta_{10}^{\tau}(f(\widetilde{Y}_{i(t-1)(l+1)}) + \beta_{11}^{\tau}(f(\widetilde{Y}_{i(t-7)(l+7)}) \\ 
+&  + \beta_{12}^{\tau}f(\widetilde{Y}_{i(t-1)l_{\text{min}}})  + \beta_{13}^{\tau}f(\widetilde{Y}_{i(t-7)l_{\text{min}}}) & (\text{for the most recent changes}) 
+\end{align*}
+
+
+We achieve the estimates of coefficients by solving the problem
+$$ \beta^{\tau} = \arg\min_{\beta} \sum_{l\in \mathcal{L}, t+l < s_0}(\rho_\tau (f(Y_{itL}) - X_{itl}\beta)) + \lambda ||\beta||_1$$
+
+where $\rho$ represents the quantile loss function\cite{Koenker1978}, and $\mathcal{L} = \{l: 0 \leq l \leq L\}$ represents the set of lags, ranging from 0 to the target lag $L$, over which the performance is summed. The term $||\cdot||_1$ refers to the $L_1$ norm. The hyper-parameter $\lambda \geq 0$ controls the complexity of the model, serving as a regularization parameter. 
+
+
+\paragraph{Shortening the lag window for training dataset: }
+As the data revision patterns vary greatly over lags, we investigate shortening the lag window in the regularized data revision correction problem and train separate models for observations with different levels of lag. Theoretically, training separate models is the same as training one model when pooling all of the data together and incorporating indicators of the level of lag (with full interactions) in a generalized linear model. However, this equivalence no longer holds when the lasso penalty is added to reduce the complexity of the model and dampen the impact of extreme outliers. When estimating  $Y_{itl'}$ for small values of $l'$, (e.g. $l' \leq 7$), instead of using all the data as described above, we now change the problem to be
+$$ \beta^{\tau} = \arg\min_{\beta} \sum_{l\in \mathcal{L}(l',c) , t+l < s_0}(\rho_\tau (f(Y_{itL}) - X_{itl'}\beta)) + \lambda ||\beta||_1$$
+where $\mathcal{L}(l', c) = \{l: l'-c \leq l \leq l'+ c\}$. The length lag window for this training is $2c +1$. Shortening the training window is not computationally advantageous since more models need to be trained, but the estimation performance will be changed.
+
+\paragraph{Adjusting the decay parameter: } The informativeness of observations varies when estimating data revision patterns, and it is beneficial to assign greater weight to observations from "similar" previous periods. To achieve this, weights are allocated to data points according to the following scheme:
+\[
+\beta^{\tau} = \arg\min_{\beta} \sum_{l \in \mathcal{L}(l', c), t+l < s_0} w_{itl} \left( \rho_\tau \left( f(Y_{itL}) - X_{itl'}\beta \right) \right) + \lambda ||\beta||_1
+\]
+where \( w_{itl} = \exp(-\gamma \cdot D^y_{itl} \cdot D^s_{itl}) \). The terms \( D_s \) and \( D_y \) influence the weighting in different ways: for each \( Y_{itl} \),
+\begin{itemize}
+    \item \( D^y_{itl} = |f(\widetilde{Y}_{i(s_0 - l) l}) - f(\widetilde{Y}_{itl})| \) quantifies the similarity of the disease activity level to the most recent report at log scale.
+    \item \( D^s_{itl} = |[f(\widetilde{Y}_{i(s_0 - l) l}) - f(\widetilde{Y}_{i(s_0 - l - 7)(l + 7)})] - [f(\widetilde{Y}_{itl}) - f(\widetilde{Y}_{i(t - 7)(l + 7)})]| \) quantifies the similarity of the 7-day changes at log scale. 
+\end{itemize}
+The hyper-parameter \( \gamma \geq 0 \) controls the degree of \textit{emphasis} placed on data that stand at a similar epidemic stage as the most recent data.
+
+
+
+In general, three key hyperparameters need to be tuned: lag padding $c$, which determines the size of the lag window used in training; regularization parameter $\lambda$, which controls the strength of the Lasso penalty to prevent overfitting; and sample weight $\gamma$, which adjusts the weighting strategy for different samples in the model.
+
+\subsection{Evaluation Metrics}
+
+We use the weighted interval score (WIS)\cite{gneiting2007strictly}, which is the standard metric for evaluating distributional forecasts, to evaluate the distance between the projected distribution $F$ and the target value $Y$.
+$$
+    \mbox{WIS}(F, Y) = 2\sum_{\tau}\phi_{\tau}(Y-Q^{\tau})
+$$
+
+where $\phi_{\tau}(x) = \tau|x|$ for $x\geq 0$ and $\phi_{\tau}(x) = (1-\tau)|x|$ for $x<0$, which is called the tilted absolute loss\cite{mcdonald2021can}. Given a certain estimation task of $Y_{it}$ for location $i$ and reference date $t$ based on the quantities of interest that is available on date $t+l$, the WIS score can be written as 
+$$
+    \mbox{WIS}(F_{Y_{f(itL}|X_{itl})}, f(Y_{itL})) = 2\sum_{\tau}\phi_{\tau}(f(Y_{itL}) - Q_{f(Y_{itL}|X_{itl})}^{\tau})
+$$
+where the set of $\{\hat Q_{f(Y_{itL})|X_{itl}}^{\tau} \}_{\tau}$ is our projected distribution and $f(Y_{itL})$ is the target value which is the $L$th revision of $Y_{it}$ at the log scale. If only median is projected, the WIS score reduced to absolute error at the log scale
+$$ \text{WIS}_{itl} = |\hat{Q}_{f(Y_{itL})|X_{itl}}(0.5) - f(Y_{itL})|  $$
+
+This evaluation approach adopts a symmetrical perspective on relative errors, ensuring scale independence and robustness against variations in magnitude across different reference dates and locations. Since WIS operates on the log scale, it effectively captures proportional errors rather than absolute differences, making it well-suited for comparing epidemic quantities that vary widely.
+
+After exponentiation, the WIS score aligns with the absolute percentage error (APE) when the projected median is greater than or equal to the target but exceeds APE otherwise. Consequently, a smaller $\text{WIS}_{itl}$ indicates a smaller relative error between the estimate and the target. However, when the target value approaches zero, relative errors can become highly volatile, posing sensitivity issues.
+
+It's worth pointing out that due to the introduction of regularization, WIS differs from the penalized quantile regression loss used to train our estimation models. For model evaluation, we aggregate WIS scores by averaging over all reference dates $t$ and locations $i$ while considering log-scale quantities. This approach leverages the geometric mean, which provides a more accurate assessment of positively skewed relative errors.
+
+\subsection{Adaptive Modeling Protocol}
+
+The correction of real-time data revisions requires the recurrent task of forecasting target values based on epidemic metrics observed up until the estimation date, denoted as $s_0$. As $s_0$ progresses over the period of analysis, each report date provides a set of newly reported quantities for a given location $i$, which can be represented as follows:
+
+$$\{\underbrace{Y_{i,s_0,0}, Y_{i, (s_0-1), 1}, Y_{i, (s_0-2), 2}, \cdots, Y_{i, (s_0 -L +1),(L-1)}}_\text{Testing Data}, \underbrace{Y_{i, (s_0-L), L}}_\text{Target},  \cdots \}$$
+
+These quantities correspond to the 0th, 1st, 2nd, and subsequent revisions of $Y_{i, s_0}$, $Y_{i, s_0-1}$, $Y_{i, s_0-2}$, and so forth, respectively. 
+
+As the estimation date progresses from $s_0 -1$ to $s_0$, the data revision sequence
+
+$$ Y_{i,(s_0-L),0:L} = \{Y_{i, (s_0-L), 0}, Y_{i, (s_0-L), 1}, Y_{i, (s_0-L), 2}, \dots, Y_{i, (s_0-L), L}\} $$
+
+is transitioned from the testing set to the training set, as the target value $Y_{i,(s_0-L), L}$ becomes available at the estimation date $s_0$. Simultaneously, the data revision sequences $\{Y_{it}\}_{t \leq s_0-L-1}$ are excluded from further analysis, as their most recent revisions have converged sufficiently close to their respective asymptotic values.
+
+The hyper-parameters $(c, \lambda, \gamma)$ are tuned using grid search with 3-fold cross-validation. In this process, the dataset is divided into three equal subsets, and the model is trained using two subsets while the remaining subset serves as the validation set. This procedure is repeated three times, ensuring that each subset is used as the validation set once. The validation error is computed as the arithmetic mean of the WIS scores across all reference dates. The optimal set of hyperparameters is selected based on the configuration that minimizes the validation error.
+
+
+
+
+
+
+
