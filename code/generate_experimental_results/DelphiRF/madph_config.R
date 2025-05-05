@@ -7,7 +7,6 @@ source("constants.R")
 config <- list(
 
   # ---- Dataset metadata ----
-  geo              = "ma",              # Geographical unit (Massachusetts)
   geo_level        = "state",           # Aggregation level
   indicator        = "madph",           # Source indicator name
   signal           = "confirmed_cases", # Signal type
@@ -16,7 +15,7 @@ config <- list(
   temporal_resol   = "daily",           # Temporal resolution of data
 
   # ---- Temporal configuration ----
-  start_date       = as.Date("2021-04-01"),  # Start date for experiments
+  start_date       = as.Date("2021-07-01"),  # Start date for experiments
   end_date         = as.Date("2022-06-24"),  # End date for experiments
   training_window  = 180,                    # Number of training days
   testing_window   = 7,                      # Interval between test windows

@@ -105,14 +105,6 @@ main <- function(config) {
   df <- get("ma_dph")
   df$geo_value <- "ma"
 
-  df <- read.csv("~/Document/research/Delphi/myscripts/backfill_correction/experiments/ilinat_weekly_preprocessed.csv",
-                 colClasses = c(
-                   "time_value"="Date",
-                   "issue_date" = "Date"
-                 ))
-  df$geo_value <- "national"
-  config$model_save_dir = "~/"
-
   # Get the list of locations
   locs <- unique(df$geo_value)
 
