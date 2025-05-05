@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Count projection example
+Revision forecast performance comparison
+DelphiRF, Epinowcast, NobBS
 
 @author: jingjingtang
 """
@@ -154,7 +155,9 @@ plt.savefig(fig_dir + "experiment_count_result_evl_general_for_comparison.pdf", 
 rt_summary = pd.DataFrame(columns=["method", "data", "mean", "std"])
 idx = 0
 for signal in ["COVID-19 cases", "CHNG Outpatient Count", "dengue", "ilinet"]:
-    epinowcast_df = epinowcast_dfs[signal][["report_date", "geo_value", "elapsed_time"]].drop_duplicates()
+    epinowcast_df = epinowcast_dfs[signal].loc[
+        epinowcast_dfs[signal]["test_date"] == epinowcast_dfs[signal]["report_date"],
+        ["report_date", "geo_value", "elapsed_time"]].drop_duplicates()
     mean_elapsed_time = epinowcast_df["elapsed_time"].mean()
     std_elapsed_time = epinowcast_df["elapsed_time"].std(ddof=1)
     sem_elapsed_time = std_elapsed_time / np.sqrt(len(epinowcast_df))

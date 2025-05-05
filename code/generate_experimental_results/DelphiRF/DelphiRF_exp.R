@@ -104,7 +104,8 @@ main <- function(config) {
   # Load the data first
   df <- get("ma_dph")
   df$geo_value <- "ma"
-
+  
+  
   # Get the list of locations
   locs <- unique(df$geo_value)
 
@@ -130,9 +131,9 @@ main <- function(config) {
     file_name <- paste0(
       config$indicator,
       "_", loc,
-      "_", config$value_type,
+      "_", config$temporal_resol,
+      "_trainingwindow", config$training_window,
       "_testingwindow", config$testing_window,
-      "_training_window", config$training_window,
       "_reflag", config$ref_lag,
       "_lagpad", config$lag_pad,
       "_DelphiRF.csv"

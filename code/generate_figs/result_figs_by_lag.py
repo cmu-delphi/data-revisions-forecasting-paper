@@ -152,8 +152,9 @@ for idx, signal in enumerate(["COVID-19 cases", "CHNG Outpatient Count"]):
     plt.xticks(np.arange(0, 8, 1), fontsize=40)
     plt.yticks(fontsize=40)
 
-
+####################################
 #### For fraction
+####################################
 test_w = 30
 yticks = {
     "Insurance claims": [0, 10, 20, 50, 100],

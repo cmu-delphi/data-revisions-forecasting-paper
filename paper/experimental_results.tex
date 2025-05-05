@@ -112,15 +112,20 @@ The experiments were conducted on an Apple Mac Pro with a 3 GHz 6-Core Intel Cor
 
 \begin{tabular}{cc|cccc}
 \hline
-\multicolumn{2}{c|}{\multirow{2}{*}{\makecell{\textbf{Computing Time(s)}\\(per location per report date)}}} & \multicolumn{4}{c}{\textbf{Model}}  \\
-                     & &Delphi-RF Training\\ & &(only once per\\ & & week or month) & Delphi-RF Testing &Epinowcast &nobBS\\
+\multicolumn{2}{c|}{\multirow{2}{*}{\makecell{\textbf{Computing Time(s)}\\(per location per report date)}}} 
+& \multicolumn{4}{c}{\textbf{Model}} \\
+\multicolumn{2}{c|}{} 
+& \makecell{Delphi-RF\\Training\\(once/week or month)} 
+& \makecell{Delphi-RF\\Testing} 
+& \makecell{Epinowcast} 
+& \makecell{nobBS} \\
 \hline
-\multirow{6}{*}{\rotatebox{90}{\textbf{Dataset}}} &\makecell{Confirmed Cases\\(Daily, State, MA only)} & $5.921 \pm 0.539$ &$0.369\pm 0.006$  &$181.583\pm 16.778$ &$22.611\pm 1.093$ \\
-&\makecell{Insurance Claims \\ (Daily, State)}   & $43.936\pm 0.025$ &$0.819\pm 0.008$&$579.540 \pm 14.096$ &$96.030 \pm  0.431$ \\
+\multirow{6}{*}{\rotatebox{90}{\textbf{Dataset}}} &\makecell{Confirmed Cases\\(Daily, State, MA only)} & $6.750 \pm 0.015$ &$0.369\pm 0.006$  &$181.583\pm 16.778$ &$24.030\pm 0.633$ \\
+&\makecell{Insurance Claims \\ (Daily, State, All states)}   & $23.559\pm 0.025$ &$0.819\pm 0.008$&$579.540 \pm 14.096$ &$96.030 \pm  0.431$ \\
  
 % &\makecell{Insurance Claims\\(Weekly, State)} &$0.408 \pm 0.001$ &$0.003\pm 0.000$ &$10.332 \pm 0.129$ &$1.638 \pm 0.002$ \\ 
- &\makecell{Dengue Fever Cases\\(Weekly, State, PR only)} &$1.356 \pm 0.835$ &$0.153\pm 0.008$  &$64.628 \pm 0.395$ &$8.337\pm 0.033$ \\
- &\makecell{ILI Cases\\(Weekly, National)} &$0.783 \pm 0.523$ &$0.136\pm 0.003$  &$18.373 \pm 2.139$ &$5.960\pm 0.055$ \\
+ &\makecell{Dengue Fever Cases\\(Weekly, State, PR only)} &$6.848 \pm 0.150$ &$0.153\pm 0.008$  &$64.628 \pm 4.395$ &$8.337\pm 0.033$ \\
+ &\makecell{ILI Cases\\(Weekly, National)} &$2.002 \pm  0.032$ &$0.136\pm 0.003$  &$18.373 \pm 2.139$ &$5.960\pm 0.055$ \\
  \hline
 \end{tabular}
 }

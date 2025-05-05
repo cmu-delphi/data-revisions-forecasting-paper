@@ -114,13 +114,11 @@ main <- function(config) {
     config$export_dir,
     paste0(
       config$indicator,
-      "_", loc,
-      "_", config$value_type,
       "_", config$temporal_resol,
       "_testingwindow", config$testing_window,
-      "_training_window", config$training_window,
+      "_trainingwindow", config$training_window,
       "_reflag", config$ref_lag,
-      "_nobBS.csv"
+      "_NobBS.csv"
     )
   )
   write.csv(test_combined, output_file, row.names = FALSE)
