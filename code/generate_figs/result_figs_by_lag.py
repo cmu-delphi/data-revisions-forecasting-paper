@@ -17,9 +17,9 @@ import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
 
-from .constants import (signals, data_dir, fig_dir, taus,
+from constants import (signals, data_dir, fig_dir, taus,
                         filtered_states)
-from ._utils_ import (read_chng_outpatient_result, read_ma_dph_result, read_quidel_result,
+from _utils_ import (read_chng_outpatient_result, read_ma_dph_result, read_quidel_result,
                       read_chng_outpatient_count_result, re_to_wis)
 
 ### Read results
@@ -27,11 +27,7 @@ dfs = {}
 dfs["Insurance claims"] = read_chng_outpatient_result()
 dfs["COVID-19 cases in MA"] = read_ma_dph_result()
 dfs["Antigen tests"] = read_quidel_result()
-dfs["Antigen tests"]["lag"] = dfs["Antigen tests"]["lag"] + 1
 dfs["CHNG Outpatient Count"] = read_chng_outpatient_count_result()
-
-
-
 
 ####################################
 ### Result evaluation in general
@@ -41,7 +37,7 @@ yticks = [0, 20, 100, 500, 1000, 1500]
 plt.style.use('default')
 fig = plt.figure(figsize=(15, 6))
 for idx, signal in enumerate(["COVID-19 cases in MA", "CHNG Outpatient Count"]):
-    if signal == "COVID-19 cases":
+    if signal == "COVID-19 cases in MA":
         test_w = 7
     else:
         test_w = 30

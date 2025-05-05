@@ -21,8 +21,8 @@ warnings.filterwarnings("ignore")
 
 from delphi_utils import GeoMapper
 
-from .constants import (signals, data_dir, fig_dir)
-from ._utils_ import (read_chng_outpatient, read_ma_dph, read_quidel,
+from constants import (signals, data_dir, fig_dir)
+from _utils_ import (read_chng_outpatient, read_ma_dph, read_quidel,
                       create_pivot_table_for_heatmap, ratio_to_deviation)
 
 gmpr = GeoMapper()
@@ -317,9 +317,6 @@ for state, state_name in zip(combined["geo_value"].unique(), combined["state_nam
         quantile10=('value_total', lambda x: np.quantile(x, 0.1)),         # Median (50th percentile)
         quantile90=('value_total', lambda x: np.quantile(x, 0.9))
         ).reset_index()
-    # mean_df = df_total.groupby("lag").mean().reset_index()
-    # q5_df = df_total.groupby("lag").quantile(0.05).reset_index()
-    # q95_df = df_total.groupby("lag").quantile(0.95).reset_index()
     
     plt.plot(summary_total["lag"], summary_total["mean"]*100, label="%s"%state_name.title(), alpha=0.8)
     # plt.plot(mean_df["lag"], mean_df["completeness_total"], color="blue", label="Total")

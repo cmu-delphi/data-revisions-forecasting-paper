@@ -17,22 +17,21 @@ import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
 
-from .constants import (signals, data_dir, fig_dir, taus,
+from constants import (signals, data_dir, fig_dir, taus,
                         filtered_states)
-from ._utils_ import (read_chng_outpatient_result, read_ma_dph_result, read_quidel_result)
+from _utils_ import (read_chng_outpatient_result, read_ma_dph_result, read_quidel_result)
 
 ### Read results
 dfs = {}
-dfs["CHNG Outpatient"] = read_chng_outpatient_result()
-dfs["Quidel"] = read_quidel_result()
-dfs["MA-DPH"] = read_ma_dph_result()
-dfs["Quidel"]["lag"] = dfs["Quidel"]["lag"] + 1
-dfs["CHNG Oupatient Count"] = read_chng_outpatient_count_result()
+dfs["Insurance claims"] = read_chng_outpatient_result()
+dfs["Antigen tests"] = read_quidel_result()
+dfs["COVID-19 cases"] = read_ma_dph_result()
+dfs["CHNG Outpatient Count"] = read_chng_outpatient_count_result()
 
 dfs_raw = {}
-dfs_raw["CHNG Outpatient"] = read_chng_outpatient()
-dfs_raw["MA-DPH"] = read_ma_dph()
-dfs_raw["Quidel"] = read_quidel() 
+dfs_raw["Insurance claims"] = read_chng_outpatient()
+dfs_raw["COVID-19 cases"] = read_ma_dph()
+dfs_raw["Antigen tests"] = read_quidel()
 
 ####################################
 ### Fig 5: heatmap of largest L
@@ -40,6 +39,9 @@ dfs_raw["Quidel"] = read_quidel()
 date1 = datetime(2021, 8, 1)
 date2 = datetime(2022, 1, 1)
 date3 = datetime(2022, 6, 1)
+
+signal = "CHNG Outpatient Count"
+df = dfs_raw["Insurance claims"].copy()
 
 plt.figure(figsize=(18, 8))
 plt.subplot(2, 1, 1)
@@ -81,7 +83,7 @@ plt.ylabel(r'$L_{it}$', fontsize=15)
 plt.xlabel("State", fontsize=15)
 plt.title("Total Claims", fontsize=20)
 plt.tight_layout()
-plt.savefig("/Users/jingjingtang/Downloads/figs/Lit_examples.pdf", bbox_inches = 'tight')
+plt.savefig(fig_dir + "/figs/Lit_examples.pdf", bbox_inches = 'tight')
 
 
 

@@ -13,7 +13,8 @@ import pandas as pd
 from delphi_epidata import Epidata
 from epiweeks import Week
 
-Epidata.auth = ('epidata', "55f506d86b0bc")
+
+Epidata.auth = ('epidata', key) # personal key 
 # Fetch data
 pdList = []
 for lag in range(0, 105):
