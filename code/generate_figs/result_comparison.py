@@ -94,7 +94,7 @@ for idx, signal in enumerate(["COVID-19 cases", "CHNG Outpatient Count", "dengue
     ax1.fill_between(delphi_df["lag"], 
                       delphi_df["quantile10"], 
                       delphi_df["quantile90"], alpha=0.1, color="tab:orange")
-    ax1.plot(nobBS_df["lag"], nobBS_df["mean"], label="nobBS", linewidth=3.0, color="tab:blue")
+    ax1.plot(nobBS_df["lag"], nobBS_df["mean"], label="NobBS", linewidth=3.0, color="tab:blue")
     ax1.fill_between(nobBS_df["lag"], 
                      nobBS_df["quantile10"], 
                      nobBS_df["quantile90"], alpha=0.1, color="tab:blue")
