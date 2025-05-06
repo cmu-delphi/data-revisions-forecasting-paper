@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Aggregated evl results over lags per location
+Aggregated evl results by reference date per location
 
 @author: jingjingtang
 """
 
-
-from datetime import datetime, timedelta
+import os
+from datetime import datetime
 import matplotlib.pyplot as plt
 # from matplotlib.backends.backend_pdf import PdfPages
 
@@ -19,9 +19,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from constants import (signals, data_dir, fig_dir, taus,
-                        filtered_states)
-from _utils_ import (read_chng_outpatient_result, read_ma_dph_result, read_quidel_result,
-                      read_chng_outpatient_count_result, re_to_wis)
+                        filtered_states, map_list)
+from _utils_ import *
 
 ### Read results
 dfs = {}
@@ -70,7 +69,7 @@ for idx, signal in ["COVID-19 cases in MA", "CHNG Outpatient Count",
         yticks = [0, 20, 50]
         ylims = [0, 0.5]
         test_w = 30
-    output = fig_dir + "experiment_result_time_series_for_%s_per_loc.pdf"%(os.join())
+    output = fig_dir + "appendix_experiment_result_time_series_for_%s_per_loc.pdf"%(os.join())
     with PdfPages(os.path.join("./", output)) as pdf:
         fig = plt.figure(figsize=(60, 35))
         for i in range(len(map_list)):
@@ -78,7 +77,7 @@ for idx, signal in ["COVID-19 cases in MA", "CHNG Outpatient Count",
             if state == '':
                 continue
             
-            plt.subplot(7, 11, i+1)
+            ax1 = plt.subplot(7, 11, i+1)
             
             delphi_result = dfs[signal].loc[
                 (dfs[signal]["lag"] == 7)
@@ -90,10 +89,52 @@ for idx, signal in ["COVID-19 cases in MA", "CHNG Outpatient Count",
                 quantile90=('wis', lambda x: np.quantile(x, 0.9))
                 ).reset_index()
             
+            for tw in [180, 365]:
+                delphi_subdf = delphi_result.loc[delphi_result["tw"] == tw].sort_values("reference_date")
+                
             
-            
-        
-        plt.suptitle("WIS Score(log scale)", fontsize=35, y = 1.05)
+                ax1.plot(delphi_subdf["reference_date"], delphi_subdf["mean"], color =  colors[tw], alpha=0.8,
+                               label="Training window: %d days"%(tw), linewidth = 5)
+                ax1.fill_between(
+                    delphi_subdf["reference_date"],
+                    delphi_subdf["quantile10"],
+                    delphi_subdf["quantile90"],
+                    alpha=0.2, color=colors[tw]) 
+                ax1.grid(True)
+                ax1.set_xlabel('Reference Date', fontsize=60)
+                # ax1.set_xticks(xticks)
+                # ax1.set_xticklabels(df_full['reference_date'].dt.date[xticks], fontsize=50, rotation=45, ha='right')
+
+
+                if i % 11 == 0:
+                    ax1.set_ylabel("WIS" ,fontsize=60)
+                ax1.tick_params(axis='both', labelsize=55)
+                ax1.set_ylim(ylims)
+                ax1.set_xlim([start_date, end_date])
+                ax1.set_title(state.upper(), fontsize=70)
+                ax1.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+                ax2 = ax1.twinx()
+                ax2.plot([],[])
+                ax2.set_yticks(list(map(re_to_wis, yticks)))
+                ax2.set_yticklabels([str(x)+"%" for x in yticks])
+                ax2.set_ylim((ax1.get_ylim()[0], ax1.get_ylim()[1]))
+                ax2.tick_params(axis='both', labelsize=55) 
+                if i % 11 == 10:
+                    ax2.set_ylabel('Absolute\nRelative\nError', fontsize=60, rotation=270, labelpad=200)
+        labels_handles = {
+          label: handle for ax in fig.axes for handle, label in zip(*ax.get_legend_handles_labels())
+        }
+
+        fig.legend(
+          labels_handles.values(),
+          labels_handles.keys(),
+          loc = "upper center",
+          bbox_to_anchor = (0.5, -0.02),
+          bbox_transform = plt.gcf().transFigure,
+          ncol = 2,
+          fontsize=55
+        )
+        plt.suptitle("%s, Lag = 7 \n(Model retrained every %d days)"%(titles[signal], test_w), fontsize=100, y = 1.02)
         plt.tight_layout()
                            
                         
@@ -105,17 +146,7 @@ for idx, signal in ["COVID-19 cases in MA", "CHNG Outpatient Count",
     
     
        
-    for tw in [180, 365]:
-        delphi_subdf = delphi_result.loc[delphi_result["tw"] == tw].sort_values("reference_date")
-        
-    
-        ax[idx*2].plot(delphi_subdf["reference_date"], delphi_subdf["mean"], color =  colors[tw], alpha=0.8,
-                       label="Training window: %d days"%(tw), linewidth = 5)
-        ax[idx*2].fill_between(
-            delphi_subdf["reference_date"],
-            delphi_subdf["quantile10"],
-            delphi_subdf["quantile90"],
-            alpha=0.2, color=colors[tw])     
+     
     ax[idx*2].grid(True)
     ax[idx*2].set_ylabel("WIS" ,fontsize=60)
     ax[idx*2].tick_params(axis='both', labelsize=55)
