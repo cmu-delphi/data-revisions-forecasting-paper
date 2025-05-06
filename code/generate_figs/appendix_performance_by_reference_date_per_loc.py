@@ -62,22 +62,6 @@ plt.style.use('default')
 
 for idx, signal in ["COVID-19 cases in MA", "CHNG Outpatient Count",
                     "Insurance claims", "Antigen tests"]:  
-    output = fig_dir + "experiment_result_time_series_for_%s_per_loc.pdf"%(os.join())
-    with PdfPages(os.path.join("./", output)) as pdf:
-        fig = plt.figure(figsize=(60, 35))
-        for i in range(len(map_list)):
-            state = map_list[i]
-            if state == '':
-                continue
-            
-        
-    delphi_result = dfs[signal].loc[dfs[signal]["lag"] == 7].groupby(["tw", "reference_date"]).agg(
-        mean=('wis', 'mean'),
-        sem=('wis', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
-        quantile10=('wis', lambda x: np.quantile(x, 0.1)),         # Median (50th percentile)
-        quantile90=('wis', lambda x: np.quantile(x, 0.9))
-        ).reset_index()
-    
     if signal == "COVID-19 cases in MA":
         yticks = [0, 5, 10]
         ylims = [0, 0.1]
@@ -86,6 +70,40 @@ for idx, signal in ["COVID-19 cases in MA", "CHNG Outpatient Count",
         yticks = [0, 20, 50]
         ylims = [0, 0.5]
         test_w = 30
+    output = fig_dir + "experiment_result_time_series_for_%s_per_loc.pdf"%(os.join())
+    with PdfPages(os.path.join("./", output)) as pdf:
+        fig = plt.figure(figsize=(60, 35))
+        for i in range(len(map_list)):
+            state = map_list[i]
+            if state == '':
+                continue
+            
+            plt.subplot(7, 11, i+1)
+            
+            delphi_result = dfs[signal].loc[
+                (dfs[signal]["lag"] == 7)
+                & (dfs[signal]["geo_value"] == state)
+                ].groupby(["tw", "reference_date"]).agg(
+                mean=('wis', 'mean'),
+                sem=('wis', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
+                quantile10=('wis', lambda x: np.quantile(x, 0.1)),         # Median (50th percentile)
+                quantile90=('wis', lambda x: np.quantile(x, 0.9))
+                ).reset_index()
+            
+            
+            
+        
+        plt.suptitle("WIS Score(log scale)", fontsize=35, y = 1.05)
+        plt.tight_layout()
+                           
+                        
+        pdf.savefig(fig)
+        plt.close()  
+            
+        
+    
+    
+    
        
     for tw in [180, 365]:
         delphi_subdf = delphi_result.loc[delphi_result["tw"] == tw].sort_values("reference_date")
