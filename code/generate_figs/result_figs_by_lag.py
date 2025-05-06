@@ -24,10 +24,11 @@ from _utils_ import (read_chng_outpatient_result, read_ma_dph_result, read_quide
 
 ### Read results
 dfs = {}
-dfs["Insurance claims"] = read_chng_outpatient_result()
-dfs["COVID-19 cases in MA"] = read_ma_dph_result()
-dfs["Antigen tests"] = read_quidel_result()
-dfs["CHNG Outpatient Count"] = read_chng_outpatient_count_result()
+dfs["COVID-19 cases in MA"] = read_experimental_results(madph_config, "DelphiRF")
+dfs["CHNG Outpatient Count"] = read_experimental_results(chng_count_config, "DelphiRF")
+dfs["Insurance claims"] = read_experimental_results(chng_fraction_config, "DelphiRF")
+dfs["Antigen tests"] = read_experimental_results(quidel_config, "DelphiRF")
+
 
 ####################################
 ### Result evaluation in general

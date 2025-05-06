@@ -3,7 +3,6 @@
 """
 Constants
 
-local working dir: /Users/jingjingtang/Documents/backfill-recheck/paper
 @author: jingjingtang
 """
 

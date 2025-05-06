@@ -24,10 +24,11 @@ from _utils_ import (read_chng_outpatient_result, read_ma_dph_result, read_quide
 
 ### Read results
 dfs = {}
-dfs["Insurance claims"] = read_chng_outpatient_result()
-dfs["COVID-19 cases in MA"] = read_ma_dph_result()
-dfs["Antigen tests"] = read_quidel_result()
-dfs["CHNG Outpatient Count"] = read_chng_outpatient_count_result()
+dfs["COVID-19 cases in MA"] = read_experimental_results(madph_config, "DelphiRF")
+dfs["CHNG Outpatient Count"] = read_experimental_results(chng_count_config, "DelphiRF")
+dfs["Insurance claims"] = read_experimental_results(chng_fraction_config, "DelphiRF")
+dfs["Antigen tests"] = read_experimental_results(quidel_config, "DelphiRF")
+
 
 start_date = datetime(2021, 5, 15)
 end_date = datetime(2022, 3, 1)
@@ -52,7 +53,7 @@ subtitles = {
     }
 plt.style.use('default')
 
-
+### generate fig for one signal
 yticks = [0, 20, 50]
 ylims = [0, 0.5]
 signal = "Insurance claims"
@@ -109,14 +110,20 @@ ax[1].set_xticklabels(df_full['reference_date'].dt.date[xticks], fontsize=40, ro
 plt.savefig(fig_dir + "experiment_count_result_%s_time_series.pdf"%"_".join(signal.split(" ")), bbox_inches = 'tight')
 
 ### Combined
+value_type = "Count"
+# value_type = "Fraction"
+signals = {
+    "Count": ["COVID-19 cases in MA", "CHNG Outpatient Count"],
+    "Fraction": ["Insurance claims", "Antigen tests"]
+    }
+ 
 colors = {
     180: "tab:orange",
     365: "tab:green"}
 
 fig, ax = plt.subplots(4, 1, figsize=(30, 16), 
                        gridspec_kw={'height_ratios': [2.6, 0.8, 2.6, 0.8], 'hspace':0.1})
-# for idx, signal in enumerate(["COVID-19 cases in MA", "CHNG Outpatient Count"]):
-for idx, signal in enumerate(["Insurance claims", "Antigen tests"]):    
+for idx, signal in enumerate(signals[value_type]):  
     delphi_result = dfs[signal].loc[dfs[signal]["lag"] == 7].groupby(["tw", "reference_date"]).agg(
         mean=('wis', 'mean'),
         sem=('wis', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
@@ -176,7 +183,7 @@ ax[idx*2+1].set_xlabel('Reference Date', fontsize=60)
 ax[idx*2+1].set_xticks(xticks)
 ax[idx*2+1].set_xticklabels(df_full['reference_date'].dt.date[xticks], fontsize=50, rotation=45, ha='right')
 plt.tight_layout()
-plt.suptitle("Fraction Forecasting", fontsize=90, y=1.12)
+plt.suptitle("%s Forecasting"%value_type, fontsize=90, y=1.12)
 labels_handles = {
   label: handle for ax in fig.axes for handle, label in zip(*ax.get_legend_handles_labels())
 }
@@ -199,4 +206,4 @@ ax[3].set_position([ax[3].get_position().x0, ax[3].get_position().y0 - 0.20,
                     ax[3].get_position().width, ax[3].get_position().height])
 
 
-plt.savefig(fig_dir + "experiment_fraction_result_time_series.pdf", bbox_inches = 'tight')
+plt.savefig(fig_dir + "experiment_%s_result_time_series.pdf"%value_type.lower(), bbox_inches = 'tight')

@@ -23,26 +23,29 @@ warnings.filterwarnings("ignore")
 from constants import (signals, data_dir, fig_dir, taus,
                         filtered_states, map_list)
 from _utils_ import *
-dfs = {}
-dfs["COVID-19 cases"] = read_delphirf_ma_dph_result()
-dfs["CHNG Outpatient Count"] = read_delphirf_chng_outpatient_count_result()
-dfs["dengue"] = read_delphirf_dengue_result()
-dfs["ilinet"] = read_delphirf_ilinet_result()
 
+# DelphiRF results
+dfs = {}
+dfs["COVID-19 cases"] = read_experimental_results(madph_config, "DelphiRF")
+dfs["CHNG Outpatient Count"] = read_experimental_results(chng_count_config, "DelphiRF")
+dfs["dengue"] = read_experimental_results(dengue_config, "DelphiRF")
+dfs["ilicases"] = read_experimental_results(ilicases_config, "DelphiRF")
 
 # nobBS results
 nobBS_dfs = {}
-nobBS_dfs["COVID-19 cases"] = read_nobbs_ma_dph_result()
-nobBS_dfs["CHNG Outpatient Count"] = read_nobbs_chng_outpatient_count_result()
-nobBS_dfs["dengue"] = read_nobbs_dengue_result()
-nobBS_dfs["ilinet"] = read_nobbs_ilinet_result()
+nobBS_dfs["COVID-19 cases"] = read_experimental_results(madph_config, "NobBS")
+nobBS_dfs["CHNG Outpatient Count"] = read_experimental_results(chng_count_config, "NobBS")
+nobBS_dfs["dengue"] = read_experimental_results(dengue_config, "NobBS")
+nobBS_dfs["ilicases"] = read_experimental_results(ilicases_config, "NobBS")
 
 # epinowcast results
 epinowcast_dfs = {}
-epinowcast_dfs["COVID-19 cases"] = read_epinowcast_ma_dph_result()
-epinowcast_dfs["CHNG Outpatient Count"] = read_epinowcast_chng_outpatient_count_result()
-epinowcast_dfs["dengue"] = read_epinowcast_dengue_result()
-epinowcast_dfs["ilinet"] = read_epinowcast_ilinet_result()
+epinowcast_dfs["COVID-19 cases"] = read_experimental_results(madph_config, "Epinowcast")
+epinowcast_dfs["CHNG Outpatient Count"] = read_experimental_results(chng_count_config, "Epinowcast")
+epinowcast_dfs["dengue"] = read_experimental_results(dengue_config, "Epinowcast")
+epinowcast_dfs["ilicases"] = read_experimental_results(ilicases_config, "Epinowcast")
+
+
 
 ####################################
 #### WIS comparison over lag
@@ -52,14 +55,15 @@ titles = {
     "COVID-19 cases": "COVID-19 cases\n(Daily, State, MA only)", 
     "CHNG Outpatient Count": "Insurance claims\n(Daily, State, All states)", 
     "dengue": "Dengue fever cases\n(Weekly, State, PR only)",
-    "ilinet": "ILI cases\n(Weekly, National)"
+    "ilicases": "ILI cases\n(Weekly, National)"
     }
 
 plt.style.use('default')
 fig = plt.figure(figsize=(16, 12))
-for idx, signal in enumerate(["COVID-19 cases", "CHNG Outpatient Count", "dengue", "ilinet"]):
+for idx, signal in enumerate(["COVID-19 cases", "CHNG Outpatient Count", "dengue", "ilicases"]):
     
-    nobBS_df = nobBS_dfs[signal].groupby(["lag"]).agg(
+    nobBS_df = nobBS_dfs[signal].loc[
+        (nobBS_dfs[signal]["tw"] == nobBS_dfs[signal]["tw"].min())].groupby(["lag"]).agg(
         mean=('wis', 'mean'),
         sem=('wis', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
         quantile10=('wis', lambda x: np.quantile(x.dropna(), 0.1)),         # Median (50th percentile)
@@ -67,7 +71,8 @@ for idx, signal in enumerate(["COVID-19 cases", "CHNG Outpatient Count", "dengue
         ).reset_index()
     
     epinowcast_df = epinowcast_dfs[signal].loc[
-        epinowcast_dfs[signal]["test_date"] == epinowcast_dfs[signal]["report_date"]].groupby(["lag"]).agg(
+        (epinowcast_dfs[signal]["tw"] == epinowcast_dfs[signal]["tw"].min())
+        & (epinowcast_dfs[signal]["test_date"] == epinowcast_dfs[signal]["report_date"])].groupby(["lag"]).agg(
         mean=('wis', 'mean'),
         sem=('wis', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
         quantile10=('wis', lambda x: np.quantile(x, 0.1)),         # Median (50th percentile)
@@ -75,7 +80,7 @@ for idx, signal in enumerate(["COVID-19 cases", "CHNG Outpatient Count", "dengue
         ).reset_index()
     
     delphi_df = dfs[signal].loc[ # only kept the result on the training dates 
-        (dfs[signal]["tw"] == 180)
+        (dfs[signal]["tw"] == dfs[signal]["tw"].min())
         & (dfs[signal]["report_date"].isin(epinowcast_dfs[signal]["test_date"].unique()))
         ].groupby(["lag"]).agg(
         mean=('wis', 'mean'),
@@ -152,11 +157,12 @@ plt.savefig(fig_dir + "experiment_count_result_evl_general_for_comparison.pdf", 
 #### Performance comparison with other methods
 ####################################
 
-rt_summary = pd.DataFrame(columns=["method", "data", "mean", "std"])
+rt_summary = pd.DataFrame(columns=["method", "data", "mean", "sem"])
 idx = 0
-for signal in ["COVID-19 cases", "CHNG Outpatient Count", "dengue", "ilinet"]:
+for signal in ["COVID-19 cases", "CHNG Outpatient Count", "dengue", "ilicases"]:
     epinowcast_df = epinowcast_dfs[signal].loc[
-        epinowcast_dfs[signal]["test_date"] == epinowcast_dfs[signal]["report_date"],
+        (epinowcast_dfs[signal]["test_date"] == epinowcast_dfs[signal]["report_date"])
+        & (epinowcast_dfs[signal]["tw"] == epinowcast_dfs[signal]["tw"].min()),
         ["report_date", "geo_value", "elapsed_time"]].drop_duplicates()
     mean_elapsed_time = epinowcast_df["elapsed_time"].mean()
     std_elapsed_time = epinowcast_df["elapsed_time"].std(ddof=1)
@@ -164,7 +170,9 @@ for signal in ["COVID-19 cases", "CHNG Outpatient Count", "dengue", "ilinet"]:
     rt_summary.loc[idx] = ["epinowcast", signal, mean_elapsed_time, sem_elapsed_time]
     idx += 1
 
-    nobBS_df = nobBS_dfs[signal][["issue_date", "geo_value", "elapsed_time"]].drop_duplicates()
+    nobBS_df = nobBS_dfs[signal].loc[
+        nobBS_dfs[signal]["tw"] == nobBS_dfs[signal]["tw"].min(),
+        ["issue_date", "geo_value", "elapsed_time"]].drop_duplicates()
     mean_elapsed_time = nobBS_df["elapsed_time"].mean()
     std_elapsed_time = nobBS_df["elapsed_time"].std(ddof=1)
     sem_elapsed_time = std_elapsed_time / np.sqrt(len(nobBS_df))
@@ -172,9 +180,10 @@ for signal in ["COVID-19 cases", "CHNG Outpatient Count", "dengue", "ilinet"]:
     idx += 1
 
     delphi_df = dfs[signal].loc[
-        (dfs[signal]["tw"] == 180),
+        (dfs[signal]["tw"] == dfs[signal]["tw"].min()),
         ['report_date', 'time_for_running', 'time_for_preprocessing']
     ].drop_duplicates()
+    delphi_df["elapsed_time"] = delphi_df["time_for_running"] + delphi_df["time_for_preprocessing"]
     mean_elapsed_time = delphi_df["elapsed_time"].mean()
     std_elapsed_time = delphi_df["elapsed_time"].std(ddof=1)
     sem_elapsed_time = std_elapsed_time / np.sqrt(len(delphi_df))
