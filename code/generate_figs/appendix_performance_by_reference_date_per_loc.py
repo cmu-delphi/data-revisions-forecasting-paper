@@ -64,6 +64,12 @@ for idx, signal in ["COVID-19 cases in MA", "CHNG Outpatient Count",
                     "Insurance claims", "Antigen tests"]:  
     output = fig_dir + "experiment_result_time_series_for_%s_per_loc.pdf"%(os.join())
     with PdfPages(os.path.join("./", output)) as pdf:
+        fig = plt.figure(figsize=(60, 35))
+        for i in range(len(map_list)):
+            state = map_list[i]
+            if state == '':
+                continue
+            
         
     delphi_result = dfs[signal].loc[dfs[signal]["lag"] == 7].groupby(["tw", "reference_date"]).agg(
         mean=('wis', 'mean'),
