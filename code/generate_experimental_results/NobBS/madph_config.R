@@ -4,7 +4,7 @@
 # ----------------------------------------------------------------
 config <- list(
   # ---- Dataset metadata ----
-  data_path        = "",                # file dir
+  data_path        = "",                
   indicator        = "madph",           # Source indicator name
   value_type       = "count",           # Type of observed values
   temporal_resol   = "daily",           # Temporal resolution of data

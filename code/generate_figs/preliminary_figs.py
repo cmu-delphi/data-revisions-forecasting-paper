@@ -22,26 +22,26 @@ warnings.filterwarnings("ignore")
 from delphi_utils import GeoMapper
 
 from constants import (signals, data_dir, fig_dir)
-from _utils_ import (read_chng_outpatient, read_ma_dph, read_quidel,
-                      create_pivot_table_for_heatmap, ratio_to_deviation)
+from _utils_ import *
 
 gmpr = GeoMapper()
 
-state = "ma"
+# Read the raw data
+
 dfs = {}
-dfs["Insurance claims"] = read_chng_outpatient()
-dfs["COVID-19 cases"] = read_ma_dph()
-dfs["Antigen tests"] = read_quidel() 
+dfs["Insurance claims"] = read_raw_data_with_revisions(chng_fraction_config)
+dfs["COVID-19 cases"] = read_raw_data_with_revisions(madph_config)
+dfs["Antigen tests"] = read_raw_data_with_revisions(quidel_config)
 
 ####################################
 ### Fig 1: backfill problem
 ####################################
+state = "ma"
   
 fig = plt.figure(figsize = (20, 6))
 for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
     print(signal)
-    subdf = dfs[signal].loc[(dfs[signal]["time_value"] >= datetime(2021, 6, 1))
-                         & (dfs[signal]["lag"] <= 300)
+    subdf = dfs[signal].loc[(dfs[signal]["lag"] <= 180)
                          & (dfs[signal]["geo_value"] == state)]
     subdf.index = list(range(subdf.shape[0]))
 
@@ -49,7 +49,7 @@ for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
     ax1 = plt.subplot(1, 2, 1)
     df_covid = create_pivot_table_for_heatmap(subdf, "value_covid", melt=True).dropna()  
     df_covid["value_covid"] = df_covid["value_covid"]*100
-    df_covid = df_covid.loc[df_covid["lag"] <= 125]
+    # df_covid = df_covid.loc[df_covid["lag"] <= 125]
     
     summary_covid = df_covid.groupby(["lag"]).agg(
         mean=('value_covid', 'mean'),
@@ -67,15 +67,16 @@ for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
     # plt.legend(loc="lower left")
     ax1.set_yticks(np.arange(0, 111, 20))
     ax1.set_xticks(np.append(np.arange(0, 121, 30), [7, 14]))
-    ax1.set_title("COVID-19 Counts in Massachusetts", fontsize=30, loc="left")
+    ax1.set_title("COVID-19 Counts in Massachusetts", fontsize=32, loc="left")
     ax1.set_ylim(0, 120)
+    ax1.set_xlim(-1, 181)
     ax1.tick_params(axis='both', labelsize=25)
     ax1.grid(True)
     
     
     ax2 = plt.subplot(1, 2, 2)
     df_frc = create_pivot_table_for_heatmap(subdf, "7dav_frac", melt=True).dropna()  
-    df_frc = df_frc.loc[df_frc["lag"] <= 125]
+    # df_frc = df_frc.loc[df_frc["lag"] <= 125]
     summary_frc = df_frc.groupby(["lag"]).agg(
         mean=('7dav_frac', 'mean'),
         sem=('7dav_frac', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
@@ -89,11 +90,12 @@ for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
                      summary_frc["quantile90"], alpha=0.25)
     plt.xlabel("Lag (Days)", fontsize=30)
     plt.ylabel("Deviation from\nFinalized Value", fontsize=30)
-    plt.title("COVID-19 Fractions in Massachusetts", fontsize=30, loc="left")
+    plt.title("COVID-19 Fractions in Massachusetts", fontsize=32, loc="left")
     yticks = np.arange(50, 130, 10) / 100
     plt.yticks(yticks, list(map(ratio_to_deviation, yticks)), fontsize=25)
     plt.ylim(0.48, 1.22)
     plt.xticks(np.append(np.arange(0, 121, 30), [7, 14]), fontsize=25)
+    plt.xlim(-1, 181)
     
     ax2.grid(True)
 
@@ -123,8 +125,7 @@ plt.savefig(fig_dir + "intro.png", bbox_inches = "tight")
 plt.figure(figsize = (10, 6))
 for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
     print(signal)
-    subdf = dfs[signal].loc[(dfs[signal]["time_value"] >= datetime(2021, 6, 1))
-                         & (dfs[signal]["lag"] <= 300)
+    subdf = dfs[signal].loc[(dfs[signal]["lag"] <= 180)
                          & (dfs[signal]["geo_value"] == "ma")]
     subdf.index = list(range(subdf.shape[0]))
     
@@ -132,14 +133,14 @@ for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
     df_covid = df_covid.loc[df_covid["lag"] <= 8]
     
     mean_df = df_covid.groupby("lag").mean().reset_index()
-    q5_df = df_covid.groupby("lag").quantile(0.1).reset_index()
-    q95_df = df_covid.groupby("lag").quantile(0.9).reset_index()
+    q10_df = df_covid.groupby("lag").quantile(0.1).reset_index()
+    q90_df = df_covid.groupby("lag").quantile(0.9).reset_index()
     
     plt.plot(mean_df["lag"], mean_df["7dav_frac"], label="%s"%signal, alpha=1)
     # plt.plot(mean_df["lag"], mean_df["completeness_total"], color="blue", label="Total")
     plt.fill_between(mean_df["lag"], 
-                      q5_df["7dav_frac"], 
-                      q95_df["7dav_frac"], alpha=0.25)
+                      q10_df["7dav_frac"], 
+                      q90_df["7dav_frac"], alpha=0.25)
     
     plt.yticks(np.arange(0.6, 1.4, 0.2), list(map(ratio_to_deviation, np.arange(0.6, 1.4, 0.2))), fontsize=30)
     plt.ylim(0.58, 1.32)
@@ -151,8 +152,7 @@ plt.savefig(fig_dir + "intro_zoomin1.png", bbox_inches = "tight")
 plt.figure(figsize = (10, 6))
 for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
     print(signal)
-    subdf = dfs[signal].loc[(dfs[signal]["time_value"] >= datetime(2021, 6, 1))
-                         & (dfs[signal]["lag"] <= 300)
+    subdf = dfs[signal].loc[(dfs[signal]["lag"] <= 180)
                          & (dfs[signal]["geo_value"] == "ma")]
     subdf.index = list(range(subdf.shape[0]))
     
@@ -160,14 +160,14 @@ for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
     df_covid = df_covid.loc[df_covid["lag"] <= 8]
     df_covid["value_covid"] = df_covid["value_covid"]*100
     mean_df = df_covid.groupby("lag").mean().reset_index()
-    q5_df = df_covid.groupby("lag").quantile(0.1).reset_index()
-    q95_df = df_covid.groupby("lag").quantile(0.9).reset_index()
+    q10_df = df_covid.groupby("lag").quantile(0.1).reset_index()
+    q90_df = df_covid.groupby("lag").quantile(0.9).reset_index()
     
     plt.plot(mean_df["lag"], mean_df["value_covid"], label="%s"%signal, alpha=1)
     # plt.plot(mean_df["lag"], mean_df["completeness_total"], color="blue", label="Total")
     plt.fill_between(mean_df["lag"], 
-                      q5_df["value_covid"], 
-                      q95_df["value_covid"], alpha=0.25)
+                      q10_df["value_covid"], 
+                      q90_df["value_covid"], alpha=0.25)
     
     # plt.xlabel("Lag", fontsize=30)
     # plt.ylabel("Scaled COVID Fraction", fontsize=30)
@@ -192,7 +192,7 @@ statename = "Massachusetts"
 
 for state in ['ma']:
     subdf = combined.loc[(combined["geo_value"] == state)
-                         & (combined["time_value"] >= datetime(2021, 6, 1))
+                         & (combined["reference_date"] >= datetime(2021, 6, 1))
                          & (combined["lag"] <= 90)]
     subdf.index = list(range(subdf.shape[0]))
     
@@ -274,12 +274,12 @@ combined = df.loc[df["hhs"].isin(["2", "1"])]
 fig = plt.figure(figsize = (20, 6))
 for state, state_name in zip(combined["geo_value"].unique(), combined["state_name"].unique()):
     subdf = combined.loc[(combined["geo_value"] == state)
-                         & (combined["time_value"] >= datetime(2021, 6, 1))
+                         & (combined["reference_date"] >= datetime(2021, 6, 1))
                          & (combined["lag"] <= 240)]
     subdf.index = list(range(subdf.shape[0]))
     
-    start_date = subdf["time_value"].min()
-    end_date = subdf["time_value"].max()
+    start_date = subdf["reference_date"].min()
+    end_date = subdf["reference_date"].max()
     n_days = (end_date - start_date).days + 1 
     time_index = np.array([(start_date + timedelta(i)).date() for i in range(n_days)])
     
@@ -358,12 +358,12 @@ plt.savefig(fig_dir + "completeness_lineplot_hhs1&2.png", bbox_inches = "tight")
 fig = plt.figure(figsize=(10, 4))
 for state, state_name in zip(combined["geo_value"].unique(), combined["state_name"].unique()):
     subdf = combined.loc[(combined["geo_value"] == state)
-                         & (combined["time_value"] >= datetime(2021, 6, 1))
+                         & (combined["reference_date"] >= datetime(2021, 6, 1))
                          & (combined["lag"] <= 240)]
     subdf.index = list(range(subdf.shape[0]))
     
-    start_date = subdf["time_value"].min()
-    end_date = subdf["time_value"].max()
+    start_date = subdf["reference_date"].min()
+    end_date = subdf["reference_date"].max()
     n_days = (end_date - start_date).days + 1 
     time_index = np.array([(start_date + timedelta(i)).date() for i in range(n_days)])
     
@@ -394,12 +394,12 @@ for state, state_name in zip(combined["geo_value"].unique(), combined["state_nam
 fig = plt.figure(figsize=(10, 4))
 for state, state_name in zip(combined["geo_value"].unique(), combined["state_name"].unique()):
     subdf = combined.loc[(combined["geo_value"] == state)
-                         & (combined["time_value"] >= datetime(2021, 6, 1))
+                         & (combined["reference_date"] >= datetime(2021, 6, 1))
                          & (combined["lag"] <= 240)]
     subdf.index = list(range(subdf.shape[0]))
     
-    start_date = subdf["time_value"].min()
-    end_date = subdf["time_value"].max()
+    start_date = subdf["reference_date"].min()
+    end_date = subdf["reference_date"].max()
     n_days = (end_date - start_date).days + 1 
     time_index = np.array([(start_date + timedelta(i)).date() for i in range(n_days)])
     

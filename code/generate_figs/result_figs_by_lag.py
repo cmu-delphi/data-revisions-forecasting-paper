@@ -19,8 +19,7 @@ warnings.filterwarnings("ignore")
 
 from constants import (signals, data_dir, fig_dir, taus,
                         filtered_states)
-from _utils_ import (read_chng_outpatient_result, read_ma_dph_result, read_quidel_result,
-                      read_chng_outpatient_count_result, re_to_wis)
+from _utils_ import *
 
 ### Read results
 dfs = {}
@@ -30,6 +29,9 @@ dfs["Insurance claims"] = read_experimental_results(chng_fraction_config, "Delph
 dfs["Antigen tests"] = read_experimental_results(quidel_config, "DelphiRF")
 
 
+colors = {
+    180: "tab:orange",
+    365: "tab:green"}
 ####################################
 ### Result evaluation in general
 ### Three datasets share label? 
@@ -126,19 +128,29 @@ plt.savefig(fig_dir + "experiment_count_result_evl_general.png", bbox_inches = '
 ###################
 ###### Zoom in
 ###################
-colors = {
-    180: "tab:orange",
-    365: "tab:green"}
-for idx, signal in enumerate(["COVID-19 cases", "CHNG Outpatient Count"]):
-    
+
+for idx, signal in enumerate(["COVID-19 cases in MA", "CHNG Outpatient Count"]):
+    plt.figure()
     delphi_result = dfs[signal].groupby(["lag", "tw"]).agg(
         mean=('wis', 'mean'),
         sem=('wis', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
         quantile10=('wis', lambda x: np.quantile(x, 0.1)),         # Median (50th percentile)
         quantile90=('wis', lambda x: np.quantile(x, 0.9))
         ).reset_index()
-       
-    plt.figure()
+    baseline_result = dfs[signal].groupby(["lag", "tw"]).agg(
+        mean=('mae', 'mean'),
+        sem=('mae', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
+        quantile10=('mae', lambda x: np.quantile(x, 0.1)),         # Median (50th percentile)
+        quantile90=('mae', lambda x: np.quantile(x, 0.9))
+        ).reset_index()
+    baseline_subdf = baseline_result.loc[baseline_result["tw"] == 180].sort_values("lag")
+    plt.plot(baseline_subdf["lag"], baseline_subdf["mean"], label="Baseline", linewidth=3.0,
+             color = "tab:gray")    
+    plt.fill_between(baseline_subdf["lag"], 
+                     baseline_subdf["quantile10"], 
+                     baseline_subdf["quantile90"], alpha=0.1, color="tab:gray")
+      
+    
     for tw in [180, 365]:
         delphi_subdf = delphi_result.loc[delphi_result["tw"] == tw].sort_values("lag")
         plt.plot(delphi_subdf["lag"], 
@@ -149,7 +161,8 @@ for idx, signal in enumerate(["COVID-19 cases", "CHNG Outpatient Count"]):
                          color = colors[tw])
     plt.grid(True)
     plt.xlim((0, 7))
-    # plt.set_ylim((0, 3))
+    plt.ylim((0, 0.5))
+    plt.yticks(np.linspace(0, 0.5, 6))
     plt.xticks(np.arange(0, 8, 1), fontsize=40)
     plt.yticks(fontsize=40)
 
@@ -162,7 +175,7 @@ yticks = {
     "Antigen tests": [0, 5, 10, 20, 30]}
 ylims = {
     "Insurance claims": (-0.02, 0.6),
-    "Antigen tests": (-0.01, 0.2)}
+    "Antigen tests": (-0.02, 0.6)}
 plt.style.use('default')
 fig = plt.figure(figsize=(15, 6))
 for idx, signal in enumerate(["Insurance claims", "Antigen tests"]):
@@ -179,7 +192,6 @@ for idx, signal in enumerate(["Insurance claims", "Antigen tests"]):
         quantile10=('mae', lambda x: np.quantile(x, 0.1)),         # Median (50th percentile)
         quantile90=('mae', lambda x: np.quantile(x, 0.9))
         ).reset_index()
-    baseline_subdf = baseline_result.loc[baseline_result["tw"] == 180].sort_values("lag")
     
     ax1 = plt.subplot(1, 2, idx+1)
     baseline_subdf = baseline_result.loc[baseline_result["tw"] == 180].sort_values("lag")
@@ -245,3 +257,41 @@ plt.tight_layout()
 plt.suptitle("Fraction Forecasting", fontsize=40, y=1.07)
 plt.savefig(fig_dir + "experiment_frc_result_evl_general.pdf", bbox_inches = 'tight')
 
+###################
+###### Zoom in
+###################
+for idx, signal in enumerate(["Insurance claims", "Antigen tests"]):
+    plt.figure()
+    delphi_result = dfs[signal].groupby(["lag", "tw"]).agg(
+        mean=('wis', 'mean'),
+        sem=('wis', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
+        quantile10=('wis', lambda x: np.quantile(x, 0.1)),         # Median (50th percentile)
+        quantile90=('wis', lambda x: np.quantile(x, 0.9))
+        ).reset_index()
+    
+    baseline_result = dfs[signal].groupby(["lag", "tw"]).agg(
+        mean=('mae', 'mean'),
+        sem=('mae', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
+        quantile10=('mae', lambda x: np.quantile(x, 0.1)),         # Median (50th percentile)
+        quantile90=('mae', lambda x: np.quantile(x, 0.9))
+        ).reset_index()
+    baseline_subdf = baseline_result.loc[baseline_result["tw"] == 180].sort_values("lag")
+    plt.fill_between(baseline_subdf["lag"], 
+                     baseline_subdf["quantile10"], 
+                     baseline_subdf["quantile90"], alpha=0.1, color="tab:gray")
+       
+    
+    for tw in [180, 365]:
+        delphi_subdf = delphi_result.loc[delphi_result["tw"] == tw].sort_values("lag")
+        plt.plot(delphi_subdf["lag"], 
+                 delphi_subdf["mean"], label="Forecasted(tw=%d)"%tw,linewidth=3.0, color = colors[tw])
+        plt.fill_between(delphi_subdf["lag"], 
+                         delphi_subdf["quantile10"], 
+                         delphi_subdf["quantile90"], alpha=0.1,
+                         color = colors[tw])
+    plt.grid(True)
+    plt.xlim((0, 7))
+    plt.ylim((0, 0.2))
+    plt.yticks(np.linspace(0, 0.2, 5))
+    plt.xticks(np.arange(0, 8, 1), fontsize=40)
+    plt.yticks(fontsize=40)

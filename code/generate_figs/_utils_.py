@@ -19,6 +19,10 @@ file_dir = "./data/"
 
 madph_config = {
     "data_dir": file_dir,
+    "raw_data_filename": "MA-DPH-covid-alldata.csv",
+    "refd_col": "test_date",
+    "report_date_col": "issue_date",
+    "value_col": "confirmed_case_7d_avg",
     "indicator": "ma-dph",
     "log_value_col": "log_value_7dav",
     "log_target_col": "log_value_target",
@@ -28,6 +32,10 @@ madph_config = {
 
 quidel_config = {
     "data_dir": file_dir,
+    "raw_data_filename": "quidel_allages_state_combined_df_until20230216.csv",
+    "refd_col": "time_value",
+    "report_date_col": "issue_date",
+    "value_col": ["value_covid", "value_total"],
     "indicator": "quidel",
     "log_value_col": "log_value_7dav",
     "log_target_col": "log_value_target_7dav",
@@ -37,6 +45,10 @@ quidel_config = {
 
 chng_count_config = {
     "data_dir": file_dir,
+    "raw_data_filename": "CHNG_outpatient_state_combined_df_until20230218.csv",
+    "refd_col": "time_value",
+    "report_date_col": "issue_date",
+    "value_col": "value_covid",
     "indicator": "chng_outpatient_count",
     "log_value_col": "log_value_7dav",
     "log_target_col": "log_value_target",
@@ -46,6 +58,10 @@ chng_count_config = {
 
 chng_fraction_config = {
     "data_dir": file_dir,
+    "raw_data_filename": "CHNG_outpatient_state_combined_df_until20230218.csv",
+    "refd_col": "time_value",
+    "report_date_col": "issue_date",
+    "value_col": ["value_covid", "value_total"],
     "indicator": "chng_outpatient_fraction",
     "log_value_col": "log_value_7dav",
     "log_target_col": "log_value_target_7dav",
@@ -76,53 +92,40 @@ ilicases_config = {
 ####################################
 ### Read Data ######################
 ####################################
-
-# def read_chng_outpatient(): 
-#     df = pd.read_csv("/Users/jingjingtang/Documents/backfill-recheck/paper/data/raw/chng_outpatient_input/CHNG_outpatient_state_combined_df_until20230218.csv",
-#                      parse_dates=["time_value", "issue_date"])
-#     df = df.loc[(df["time_value"] <= datetime(2023, 1, 10))
-#                 &(df["time_value"] >= datetime(2021, 4, 1))
-#                 & (~df["geo_value"].isin(set(filtered_states)))].sort_values(["issue_date", "time_value"])  
-#     pdList = []
-#     for geo in df["geo_value"].unique():
-#         subdf = df[df["geo_value"] == geo]
-#         subdf["value_7dav_covid"] = subdf["value_covid"].groupby(subdf["issue_date"]).shift(1).rolling(7).mean()
-#         subdf["value_7dav_total"] = subdf["value_total"].groupby(subdf["issue_date"]).shift(1).rolling(7).mean()
-#         pdList.append(subdf)
-#     df = pd.concat(pdList)
-    
-#     df["7dav_frac"] = (df["value_7dav_covid"]+1)/(df["value_7dav_total"]+1)
-#     return df
-    
 # df = read_chng_outpatient()
-
-def read_ma_dph(data_dir, path):
-    """
-    Read the raw ma-dph data
-    """
-    file_dir = data_dir + path
-    ma_df = pd.read_csv(file_dir, parse_dates=["test_date", "issue_date"])
-    ma_df.rename({"confirmed_case_7d_avg": "value_covid", "test_date": "time_value"}, axis=1, inplace=True)
-    ma_df["lag"] = [(x- y).days for x, y in zip(ma_df["issue_date"], ma_df["time_value"])]
-    ma_df["geo_value"] = "ma"
-    ma_df["7dav_frac"] = ma_df["value_covid"] / MA_POP    
-    return ma_df
-
-def read_quidel(data_dir, path):
-    file_dir = data_dir + path
-    df = pd.read_csv(file_dir, parse_dates=["time_value", "issue_date"])    
-    df = df.loc[~df["geo_value"].isin(set(filtered_states))].sort_values(["issue_date", "time_value"])
-
-    pdList = []
-    for geo in df["geo_value"].unique():
-        subdf = df[df["geo_value"] == geo]
-        subdf["value_7dav_covid"] = subdf["value_covid"].groupby(subdf["issue_date"]).shift(1).rolling(7).mean()
-        subdf["value_7dav_total"] = subdf["value_total"].groupby(subdf["issue_date"]).shift(1).rolling(7).mean()
-        pdList.append(subdf)
-    df = pd.concat(pdList)
+def read_raw_data_with_revisions(config):
     
-    df["7dav_frac"] = (df["value_7dav_covid"]+1)/(df["value_7dav_total"]+1)
+    df = pd.read_csv(os.path.join(config["data_dir"], "raw", config["raw_data_filename"]),
+                     parse_dates=[config["refd_col"], config["report_date_col"]])
     
+    df.rename({config["refd_col"]: "reference_date",
+               config["report_date_col"]: "report_date",
+               }, axis=1, inplace=True)
+    df["lag"] = [(x- y).days for x, y in zip(df["report_date"], df["reference_date"])]
+    if config["indicator"] == "ma-dph":
+        df["geo_value"] = "ma"
+    
+    df = df.loc[(~df["geo_value"].isin(set(filtered_states)))
+                & (df["report_date"] <= datetime(2023, 1, 10))
+                ].sort_values(["report_date", "reference_date"])
+
+    if config["indicator"] == "ma-dph":
+        df.rename({config["value_col"]: "value_covid"}, inplace=True, axis=1)
+        df["7dav_frac"] = df["value_covid"] / MA_POP   
+    else:
+        df.rename({
+            config["value_col"][0]: "value_covid",
+            config["value_col"][1]: "value_total"
+            }, inplace=True, axis=1)
+        pdList = []
+        for geo in df["geo_value"].unique():
+            subdf = df[df["geo_value"] == geo]
+            subdf["value_7dav_covid"] = subdf["value_covid"].groupby(subdf["report_date"]).shift(1).rolling(7).mean()
+            subdf["value_7dav_total"] = subdf["value_total"].groupby(subdf["report_date"]).shift(1).rolling(7).mean()
+            pdList.append(subdf)
+        df = pd.concat(pdList)   
+        df["7dav_frac"] = (df["value_7dav_covid"] +1)/(df["value_7dav_total"]+1)
+        
     return df
 
 
@@ -233,7 +236,7 @@ def create_pivot_table_for_heatmap(subdf, value_type, melt=False, target="newest
 
 
     """
-    pivot_table = subdf.copy().pivot_table(index="time_value", columns="lag", values=value_type)
+    pivot_table = subdf.copy().pivot_table(index="reference_date", columns="lag", values=value_type)
     pivot_table.index = pivot_table.index.astype(str)
     
     pivot_table["newest_report"] = pivot_table.ffill(axis=1).iloc[:, -1] 
@@ -246,13 +249,13 @@ def create_pivot_table_for_heatmap(subdf, value_type, melt=False, target="newest
     
     pivot_table.drop("newest_report", axis=1, inplace=True)
     
-    unpivot = pd.melt(pivot_table.reset_index(), id_vars=["time_value"], var_name = ["lag"], value_name = value_type)
-    unpivot["time_value"] = unpivot["time_value"].astype("datetime64[ns]")
-    # unpivot = unpivot.loc[unpivot["time_value"] <= datetime(2022, 9, 15)]
+    unpivot = pd.melt(pivot_table.reset_index(), id_vars=["reference_date"], var_name = ["lag"], value_name = value_type)
+    unpivot["reference_date"] = unpivot["reference_date"].astype("datetime64[ns]")
+    # unpivot = unpivot.loc[unpivot["reference_date"] <= datetime(2022, 9, 15)]
     
     if melt:
         return unpivot
     else:
-        pivot_table = unpivot.pivot_table(index="lag", columns="time_value", values=value_type)   
+        pivot_table = unpivot.pivot_table(index="lag", columns="reference_date", values=value_type)   
         return pivot_table
 
