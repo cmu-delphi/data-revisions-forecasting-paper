@@ -18,7 +18,7 @@ load_and_prepare_data <- function(config) {
                    c(config$refd_col, config$report_date_col)
                    )
                  )
-  df[[config$lag_col]] <- as.integer(difftime(df[[config$report_date_col]], 
+  df$lag <- as.integer(difftime(df[[config$report_date_col]], 
                                               df[[config$refd_col]], units = "days"))
   return(df)
 }
@@ -127,6 +127,7 @@ main <- function(config) {
       paste0(
         config$indicator,
         "_", config$temporal_resol,
+        "_", loc,
         "_testingwindow", config$testing_window,
         "_trainingwindow", config$training_window,
         "_reflag", config$ref_lag,

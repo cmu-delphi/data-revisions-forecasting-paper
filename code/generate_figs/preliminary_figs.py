@@ -142,8 +142,8 @@ for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
                       q10_df["7dav_frac"], 
                       q90_df["7dav_frac"], alpha=0.25)
     
-    plt.yticks(np.arange(0.6, 1.4, 0.2), list(map(ratio_to_deviation, np.arange(0.6, 1.4, 0.2))), fontsize=30)
-    plt.ylim(0.58, 1.32)
+    plt.yticks(np.arange(0.4, 1.3, 0.2), list(map(ratio_to_deviation, np.arange(0.4, 1.3, 0.2))), fontsize=30)
+    plt.ylim(0.38, 1.23)
     plt.xticks(np.arange(0, 8, 1), fontsize=30)
 
     plt.grid(True)
@@ -164,15 +164,10 @@ for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
     q90_df = df_covid.groupby("lag").quantile(0.9).reset_index()
     
     plt.plot(mean_df["lag"], mean_df["value_covid"], label="%s"%signal, alpha=1)
-    # plt.plot(mean_df["lag"], mean_df["completeness_total"], color="blue", label="Total")
     plt.fill_between(mean_df["lag"], 
                       q10_df["value_covid"], 
                       q90_df["value_covid"], alpha=0.25)
-    
-    # plt.xlabel("Lag", fontsize=30)
-    # plt.ylabel("Scaled COVID Fraction", fontsize=30)
-    # plt.title("COVID-19 Counts in US", fontsize=25, loc="left")
-    # plt.legend(loc="lower left")
+
     plt.yticks(fontsize=30)
     plt.xticks(np.arange(0, 8, 1), fontsize=30)
 
@@ -231,7 +226,7 @@ for state in ['ma']:
     cbar = ax.collections[0].colorbar
     # here set the labelsize by 20
     cbar.ax.tick_params(labelsize=25)
-    cbar.ax.set_ylabel('%Reported', rotation=270, labelpad=16, fontsize=30)
+    cbar.ax.set_ylabel('%Reported', rotation=270, labelpad=16, fontsize=35)
     cbar.ax.yaxis.set_label_position('right')
     ytix = ax.get_yticks()
     plt.ylabel("Lag (Days)", fontsize = 30)
@@ -252,7 +247,7 @@ for state in ['ma']:
     # fig.colorbar(c1, ax=axs.ravel().tolist(), orientation='vertical', label='Color bar')
 
     plt.tight_layout()
-    plt.savefig(fig_dir + "completeness_%s.pdf"%statename, bbox_inches = "tight")
+plt.savefig(fig_dir + "completeness_%s.pdf"%statename, bbox_inches = "tight")
 
 
 
@@ -275,7 +270,7 @@ fig = plt.figure(figsize = (20, 6))
 for state, state_name in zip(combined["geo_value"].unique(), combined["state_name"].unique()):
     subdf = combined.loc[(combined["geo_value"] == state)
                          & (combined["reference_date"] >= datetime(2021, 6, 1))
-                         & (combined["lag"] <= 240)]
+                         & (combined["lag"] <= 180)]
     subdf.index = list(range(subdf.shape[0]))
     
     start_date = subdf["reference_date"].min()
@@ -306,7 +301,7 @@ for state, state_name in zip(combined["geo_value"].unique(), combined["state_nam
     plt.ylabel("%Reported", fontsize=30)
     plt.title("COVID-19 Claims in HHS Region 1&2", fontsize=35, loc="left")
     plt.yticks(np.arange(0, 110, 10), fontsize=25)
-    plt.xticks(np.arange(0, 241, 30), fontsize=25)
+    plt.xticks(np.arange(0, 181, 30), fontsize=25)
     plt.ylim(0, 105)
     plt.grid(True)
     
@@ -328,7 +323,7 @@ for state, state_name in zip(combined["geo_value"].unique(), combined["state_nam
     plt.title("Total Claims in HHS Region 1&2", fontsize=35, loc="left")
     # plt.legend(loc="upper left")
     plt.yticks(np.arange(0, 110, 10), fontsize=25)
-    plt.xticks(np.arange(0, 241, 30), fontsize=25)
+    plt.xticks(np.arange(0, 181, 30), fontsize=25)
     plt.ylim(0, 105)
     plt.grid(True)
     
@@ -359,7 +354,7 @@ fig = plt.figure(figsize=(10, 4))
 for state, state_name in zip(combined["geo_value"].unique(), combined["state_name"].unique()):
     subdf = combined.loc[(combined["geo_value"] == state)
                          & (combined["reference_date"] >= datetime(2021, 6, 1))
-                         & (combined["lag"] <= 240)]
+                         & (combined["lag"] <= 180)]
     subdf.index = list(range(subdf.shape[0]))
     
     start_date = subdf["reference_date"].min()
@@ -395,7 +390,7 @@ fig = plt.figure(figsize=(10, 4))
 for state, state_name in zip(combined["geo_value"].unique(), combined["state_name"].unique()):
     subdf = combined.loc[(combined["geo_value"] == state)
                          & (combined["reference_date"] >= datetime(2021, 6, 1))
-                         & (combined["lag"] <= 240)]
+                         & (combined["lag"] <= 180)]
     subdf.index = list(range(subdf.shape[0]))
     
     start_date = subdf["reference_date"].min()
