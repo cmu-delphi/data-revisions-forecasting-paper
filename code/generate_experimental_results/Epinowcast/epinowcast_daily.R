@@ -2,37 +2,47 @@
 
 # --- Load Libraries ---
 library(epinowcast)
-library(DelphiRF)
 library(data.table)
-library(ggplot2)
 library(dplyr)
 library(tidyr)
-library(evalcast)
 library(furrr)
 
-# Load config from external file
-source("madph_config.R")
+#Get wis from evalcast
+source("https://raw.githubusercontent.com/cmu-delphi/covidcast/refs/heads/main/R-packages/evalcast/R/error_measures.R")
+
+args <- commandArgs(trailingOnly = TRUE)
+
+if (length(args) < 2) {
+  stop("Usage: Rscript your_script.R <state> <config_file.R>")
+}
+
+loc <- tolower(args[1])
+config_script <- args[2]
+
+
+# --- Load config from external file ---
+source(config_script)
 
 # --- Load and preprocess raw data ---
 load_and_prepare_data <- function(config) {
   df <- read.csv(config$data_path, colClasses = setNames(rep("Date", 2), c(config$refd_col, config$report_date_col)))
-  df[[config$lag_col]] <- as.integer(difftime(df[[config$report_date_col]], 
+  df$lag <- as.integer(difftime(df[[config$report_date_col]], 
                                               df[[config$refd_col]], units = "days"))
   df$reference_date <- df[[config$refd_col]]
   df$report_date <- df[[config$report_date_col]]
-  df$confirm <- round(df[[value_col]])
+  df$confirm <- round(df[[config$value_col]])
   return(df)
 }
 
 # --- Extract the target values for evaluation ---
 get_target_df <- function(df, config) {
-  target_df <- df[df[[config$lag_col]] == config$ref_lag, c("reference_date", config$value_col)]
+  target_df <- df[df$lag == config$ref_lag, c("reference_date", config$value_col)]
   names(target_df)[2] <- "value_target"
   return(target_df)
 }
 
 # --- Perform nowcasting for a single test date ---
-run_nowcast <- function(test_date, backfill_df, target_df, config) {
+run_nowcast <- function(test_date, backfill_df, target_df, config, loc) {
   tryCatch({
     cat("Processing:", as.character(as.Date(test_date)), "\n")
     
@@ -40,14 +50,13 @@ run_nowcast <- function(test_date, backfill_df, target_df, config) {
     test_df <- backfill_df %>%
       filter(.data$lag <= config$ref_lag) %>%
       filter(.data$reference_date > (test_date - config$training_window - config$ref_lag)) %>%
-      filter(.data$report_date >= (test_date - config$training_window)) %>%
+      filter(.data$report_date > (test_date - config$training_window)) %>%
       filter(.data$report_date <= test_date) %>%
       filter(.data$report_date >= .data$reference_date) %>%
       filter(.data$confirm > 0) %>%
       select(reference_date, report_date, confirm) %>%
       arrange(report_date, reference_date) %>%
       drop_na()
-    
     pobs <- enw_preprocess_data(test_df, max_delay = config$ref_lag, timestep = "day")
     
     nowcast <- epinowcast(
@@ -79,6 +88,7 @@ run_nowcast <- function(test_date, backfill_df, target_df, config) {
     combined$wis <- mapply(weighted_interval_score, taus_list, predicted_trans, 0)
     combined$test_date <- test_date
     combined$elapsed_time <- elapsed["elapsed"]
+    combined$geo_value <- loc
     
     return(combined)
   }, error = function(e) {
@@ -88,46 +98,37 @@ run_nowcast <- function(test_date, backfill_df, target_df, config) {
 }
 
 # --- Main procedure ---
-main <- function(config) {
-  raw_df <- get("ma_dph")
-  raw_df$geo_value <- "ma"
+main <- function(config, loc) {
+  raw_df <- load_and_prepare_data(config)
+  df <- raw_df %>% filter(geo_value == loc)
+  if (nrow(df) == 0) stop(paste("No data found for", loc))
   
-  #raw_df <- load_and_prepare_data(config)
+  target_df <- get_target_df(df, config)
+  backfill_df <- df %>% select(reference_date, report_date, confirm, lag)
   
-  # Get the list of locations
-  locs <- unique(df$geo_value)
+  test_dates <- seq(config$start_date, config$end_date, by = config$testing_window)
+  results <- purrr::map(test_dates, run_nowcast, 
+                        backfill_df = backfill_df, target_df = target_df, 
+                        config = config, loc=loc)
+  combined_results <- bind_rows(results)
   
-  for (loc in locs) {
-    print(loc)
-    df <- raw_df %>% filter(geo_value == loc)
-    
-    target_df <- get_target_df(df, config)
-    backfill_df <- df %>% select(reference_date, report_date, confirm, lag)
-    
-    test_dates <- seq(config$start_date, config$end_date, by = config$testing_window)
-    results <- purrr::map(test_dates, run_nowcast, 
-                          backfill_df = backfill_df, target_df = target_df, 
-                          config = config)
-    combined_results <- bind_rows(results)
-    
-    output_file <- file.path(
-      config$export_dir,
-      paste0(
-        config$indicator,
-        "_", config$temporal_resol,
-        "_testingwindow", config$testing_window,
-        "_trainingwindow", config$training_window,
-        "_reflag", config$ref_lag,
-        "_epinowcast.csv"
-      )
+  output_file <- file.path(
+    config$export_dir,
+    paste0(
+      config$indicator,
+      "_", config$temporal_resol,
+      "_", loc, "_testingwindow", config$testing_window,
+      "_trainingwindow", config$training_window,
+      "_reflag", config$ref_lag,
+      "_epinowcast.csv"
     )
-    write.csv(combined_results, output_file, row.names = FALSE)
-    cat("Results saved to:", output_file, "\n")
-  }
+  )
+  write.csv(combined_results, output_file, row.names = FALSE)
+  cat("Results saved to:", output_file, "\n")
 }
 
 # --- Run main with default parameters ---
-main(config)
+main(config, loc)
 
 
 

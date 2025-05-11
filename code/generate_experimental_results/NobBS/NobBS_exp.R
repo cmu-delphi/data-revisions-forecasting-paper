@@ -2,12 +2,22 @@
 
 # --- Load Libraries ---
 library(NobBS)
-library(tidyverse)
-library(evalcast)
-library(DelphiRF)
+library(data.table)
+library(dplyr)
+library(tidyr)
+library(furrr)
 
-# Load config from external file
-source("madph_config.R")
+#Get wis from evalcast
+source("https://raw.githubusercontent.com/cmu-delphi/covidcast/refs/heads/main/R-packages/evalcast/R/error_measures.R")
+
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) < 2) stop("Usage: Rscript run_nobbs_state.R <state> <config_file.R>")
+
+loc <- tolower(args[1])
+config_file <- args[2]
+
+# Source the config file
+source(config_file)
 
 
 # --- Load and preprocess raw data ---
@@ -98,46 +108,39 @@ run_nobbs_nowcast <- function(test_date, line_list, target_df, config, loc) {
   return(test_data)
 }
 
-# --- Main procedure ---
-main <- function(config) {
-  raw_df <- get("ma_dph")
-  raw_df$geo_value <- "ma"
+main <- function(config, loc) {
+  # [2] Load only one state's data
+  raw_df <- load_and_prepare_data(config)
+  df <- raw_df %>% filter(geo_value == loc)
+  if (nrow(df) == 0) stop(paste("No data found for", loc))
   
-  #raw_df <- load_and_prepare_data(config)
+  target_df <- get_target_df(df, config)
+  line_list <- generate_line_list(df, config)
   
-  for (loc in unique(raw_df$geo_value)) {
-    print(loc)
-    df <- raw_df %>% filter(geo_value == loc)
-    target_df <- get_target_df(df, config)
-    line_list <- generate_line_list(df, config)
-    
-    valid_dates <- seq(config$start_date, config$end_date, by = "day")
-    test_dates <- valid_dates[seq(1, length(valid_dates), by = config$testing_window)]
-    
-    test_data_list <- purrr::map(test_dates, run_nobbs_nowcast,
-                                 line_list = line_list,
-                                 target_df = target_df,
-                                 config = config,
-                                 loc = loc)
-    
-    test_combined <- bind_rows(test_data_list)
-    
-    output_file <- file.path(
-      config$export_dir,
-      paste0(
-        config$indicator,
-        "_", config$temporal_resol,
-        "_", loc,
-        "_testingwindow", config$testing_window,
-        "_trainingwindow", config$training_window,
-        "_reflag", config$ref_lag,
-        "_NobBS.csv"
-      )
+  valid_dates <- seq(config$start_date, config$end_date, by = "day")
+  test_dates <- valid_dates[seq(1, length(valid_dates), by = config$testing_window)]
+  
+  test_data_list <- purrr::map(test_dates, run_nobbs_nowcast,
+                               line_list = line_list,
+                               target_df = target_df,
+                               config = config,
+                               loc = loc)
+  
+  test_combined <- bind_rows(test_data_list)
+  
+  output_file <- file.path(
+    config$export_dir,
+    paste0(
+      config$indicator, "_", config$temporal_resol,
+      "_", loc, "_testingwindow", config$testing_window,
+      "_trainingwindow", config$training_window,
+      "_reflag", config$ref_lag,
+      "_NobBS.csv"
     )
-    write.csv(test_combined, output_file, row.names = FALSE)
-    cat("Saved:", output_file, "\n")
-  }
+  )
+  write.csv(test_combined, output_file, row.names = FALSE)
+  cat("Saved:", output_file, "\n")
 }
 
-# --- Run the pipeline ---
-main(config)
+# --- Run main with specified state ---
+main(config, loc)

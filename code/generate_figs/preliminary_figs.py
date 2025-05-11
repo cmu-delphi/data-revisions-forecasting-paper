@@ -33,6 +33,8 @@ dfs["Insurance claims"] = read_raw_data_with_revisions(chng_fraction_config)
 dfs["COVID-19 cases"] = read_raw_data_with_revisions(madph_config)
 dfs["Antigen tests"] = read_raw_data_with_revisions(quidel_config)
 
+
+target_lag = 300
 ####################################
 ### Fig 1: backfill problem
 ####################################
@@ -41,7 +43,7 @@ state = "ma"
 fig = plt.figure(figsize = (20, 6))
 for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
     print(signal)
-    subdf = dfs[signal].loc[(dfs[signal]["lag"] <= 180)
+    subdf = dfs[signal].loc[(dfs[signal]["lag"] <= target_lag)
                          & (dfs[signal]["geo_value"] == state)]
     subdf.index = list(range(subdf.shape[0]))
 
@@ -125,7 +127,7 @@ plt.savefig(fig_dir + "intro.png", bbox_inches = "tight")
 plt.figure(figsize = (10, 6))
 for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
     print(signal)
-    subdf = dfs[signal].loc[(dfs[signal]["lag"] <= 180)
+    subdf = dfs[signal].loc[(dfs[signal]["lag"] <= target_lag)
                          & (dfs[signal]["geo_value"] == "ma")]
     subdf.index = list(range(subdf.shape[0]))
     
@@ -152,7 +154,7 @@ plt.savefig(fig_dir + "intro_zoomin1.png", bbox_inches = "tight")
 plt.figure(figsize = (10, 6))
 for signal in ['Insurance claims', 'Antigen tests', 'COVID-19 cases']:
     print(signal)
-    subdf = dfs[signal].loc[(dfs[signal]["lag"] <= 180)
+    subdf = dfs[signal].loc[(dfs[signal]["lag"] <= target_lag)
                          & (dfs[signal]["geo_value"] == "ma")]
     subdf.index = list(range(subdf.shape[0]))
     
@@ -179,74 +181,80 @@ plt.savefig(fig_dir + "intro_zoomin2.png", bbox_inches = "tight")
 ### Fig 3: Backfill Pattern: Heat map and Lineplot
 ####################################
 
-
 combined = dfs["Insurance claims"].copy()
-# combined = dfs["Quidel"].copy()
 statename = "Massachusetts"
-# fig.colorbar(c1, ax=axs.ravel().tolist(), orientation='vertical', label='Color bar')
 
 for state in ['ma']:
-    subdf = combined.loc[(combined["geo_value"] == state)
-                         & (combined["reference_date"] >= datetime(2021, 6, 1))
-                         & (combined["lag"] <= 90)]
+    subdf = combined.loc[
+        (combined["geo_value"] == state)
+        & (combined["reference_date"] >= datetime(2021, 6, 1))
+        & (combined["lag"] <= target_lag)
+    ]
     subdf.index = list(range(subdf.shape[0]))
     
     start_date = datetime(2021, 6, 1)
     end_date = datetime(2023, 3, 11)
     n_days = (end_date - start_date).days + 1 
     time_index = np.array([(start_date + timedelta(i)).date() for i in range(n_days)])
-    
-    selected_xtix = [x.day == 1 for x in time_index] # Show Sundays on y_axis
+    selected_xtix = [x.day == 1 for x in time_index]
     
     df_covid = create_pivot_table_for_heatmap(subdf, "value_covid")
     df_total = create_pivot_table_for_heatmap(subdf, "value_total")
     
-    fig = plt.figure(figsize=(20, 8))
-    plt.subplot(1, 2, 1)
-    ax = sns.heatmap(df_covid.values*100,cmap="tab20c_r", xticklabels=True, cbar=False)
-    ytix = ax.get_yticks()
-    plt.ylabel("Lag (Days)", fontsize = 30)
-    plt.xlabel("Reference Date", fontsize = 30)
-    plt.title("COVID-19 Claims in %s"%statename, 
-              fontsize = 35, loc="left")
-    plt.yticks(fontsize=15)
-    ax.set_xticks(np.arange(0.5, n_days + 0.5)[selected_xtix][::2])
-    ax.set_xticklabels(time_index[selected_xtix][::2], rotation=45, ha="right")
-    ax.set_yticks(np.arange(0.5, 91.5, 30))
-    ax.tick_params(axis='both', labelsize=25)
-    plt.axhline(30, linestyle="--")
-    plt.axhline(60, linestyle="--")
-    # plt.axhline(90, linestyle="--")
-    plt.axhline(90, linestyle="--")
-    ax.invert_yaxis()
+    vmin, vmax = 0, 100  # Consistent color scale
 
-    
-    plt.subplot(1, 2, 2)
-    ax = sns.heatmap(df_total.values*100,cmap="tab20c_r", xticklabels=True)
-    cbar = ax.collections[0].colorbar
-    # here set the labelsize by 20
-    cbar.ax.tick_params(labelsize=25)
-    cbar.ax.set_ylabel('%Reported', rotation=270, labelpad=16, fontsize=35)
-    cbar.ax.yaxis.set_label_position('right')
-    ytix = ax.get_yticks()
-    plt.ylabel("Lag (Days)", fontsize = 30)
-    plt.xlabel("Reference Date", fontsize = 30)
-    plt.title("Total Claims in %s"%statename, 
-              fontsize = 35, loc="left")
-    plt.yticks(fontsize=15)
-    ax.set_xticks(np.arange(0.5, n_days + 0.5)[selected_xtix][::2])
-    ax.set_xticklabels(time_index[selected_xtix][::2], rotation=45, ha="right")
-    ax.set_yticks(np.arange(0.5, 91.5, 30))
-    ax.tick_params(axis='both', labelsize=25)
-    plt.axhline(30, linestyle="--")
-    plt.axhline(60, linestyle="--")
-    # plt.axhline(90, linestyle="--")
-    plt.axhline(90, linestyle="--")
-    ax.invert_yaxis()
-    # 
-    # fig.colorbar(c1, ax=axs.ravel().tolist(), orientation='vertical', label='Color bar')
+    fig, axs = plt.subplots(1, 2, figsize=(20, 9))
+
+    # --- Subplot 1: COVID ---
+    df_covid_trimmed = df_covid.loc[df_covid.index <= 90]
+    hm1 = sns.heatmap(df_covid_trimmed * 100, ax=axs[0], cmap="tab20c_r",
+                      xticklabels=True, cbar=False, vmin=vmin, vmax=vmax)
+
+    axs[0].set_ylabel("Lag (Days)", fontsize=40)
+    axs[0].set_xlabel("Reference Date", fontsize=40)
+    axs[0].set_title("COVID-19 Claims\nin %s" % statename, fontsize=45, loc="left")
+
+    axs[0].set_xticks(np.arange(0.5, n_days + 0.5)[selected_xtix][::2])
+    axs[0].set_xticklabels(time_index[selected_xtix][::2], rotation=45, ha="right")
+
+    axs[0].set_yticks(np.arange(0, 91, 30))
+    axs[0].set_yticklabels(np.arange(0, 91, 30), fontsize=15)
+    axs[0].set_ylim(90.5, -0.5)
+    axs[0].tick_params(axis='both', labelsize=25)
+    for y in [30, 60, 90]:
+        axs[0].axhline(y + 0.5, linestyle="--", color="black")
+    axs[0].invert_yaxis()
+
+    # --- Subplot 2: Total ---
+    df_total_trimmed = df_total.loc[df_total.index <= 90]
+    hm2 = sns.heatmap(df_total_trimmed * 100, ax=axs[1], cmap="tab20c_r",
+                      xticklabels=False, vmin=vmin, vmax=vmax, cbar=False)
+
+    axs[1].set_ylabel("Lag (Days)", fontsize=40)
+    axs[1].set_xlabel("Reference Date", fontsize=40)
+    axs[1].set_title("Total Claims\nin %s" % statename, fontsize=45, loc="left")
+
+    axs[1].set_xticks(np.arange(0.5, n_days + 0.5)[selected_xtix][::2])
+    axs[1].set_xticklabels(time_index[selected_xtix][::2], rotation=45, ha="right")
+
+    axs[1].set_yticks(np.arange(0, 91, 30))
+    axs[1].set_yticklabels(np.arange(0, 91, 30), fontsize=15)
+    axs[1].set_ylim(90.5, -0.5)
+    axs[1].tick_params(axis='both', labelsize=25)
+    for y in [30, 60, 90]:
+        axs[1].axhline(y + 0.5, linestyle="--", color="black")
+    axs[1].invert_yaxis()
+
+    # --- Shared horizontal colorbar ---
+    # Add colorbar with small pad (to place it in freed-up space)
+    cbar = fig.colorbar(hm2.collections[0], ax=axs, orientation='horizontal',
+                        fraction=0.05, pad=0.01)  # use small pad here
+    cbar.ax.set_xlabel('%Reported', fontsize=30, labelpad=10)
+    cbar.ax.tick_params(labelsize=20)
 
     plt.tight_layout()
+    fig.subplots_adjust(bottom=0.45)  
+
 plt.savefig(fig_dir + "completeness_%s.pdf"%statename, bbox_inches = "tight")
 
 
@@ -270,7 +278,7 @@ fig = plt.figure(figsize = (20, 6))
 for state, state_name in zip(combined["geo_value"].unique(), combined["state_name"].unique()):
     subdf = combined.loc[(combined["geo_value"] == state)
                          & (combined["reference_date"] >= datetime(2021, 6, 1))
-                         & (combined["lag"] <= 180)]
+                         & (combined["lag"] <= target_lag)]
     subdf.index = list(range(subdf.shape[0]))
     
     start_date = subdf["reference_date"].min()
@@ -303,6 +311,7 @@ for state, state_name in zip(combined["geo_value"].unique(), combined["state_nam
     plt.yticks(np.arange(0, 110, 10), fontsize=25)
     plt.xticks(np.arange(0, 181, 30), fontsize=25)
     plt.ylim(0, 105)
+    plt.xlim(-0.5, 180.5)
     plt.grid(True)
     
     ax2 = plt.subplot(1, 2, 2)
@@ -325,6 +334,7 @@ for state, state_name in zip(combined["geo_value"].unique(), combined["state_nam
     plt.yticks(np.arange(0, 110, 10), fontsize=25)
     plt.xticks(np.arange(0, 181, 30), fontsize=25)
     plt.ylim(0, 105)
+    plt.xlim(-0.5, 180.5)
     plt.grid(True)
     
 
@@ -354,7 +364,7 @@ fig = plt.figure(figsize=(10, 4))
 for state, state_name in zip(combined["geo_value"].unique(), combined["state_name"].unique()):
     subdf = combined.loc[(combined["geo_value"] == state)
                          & (combined["reference_date"] >= datetime(2021, 6, 1))
-                         & (combined["lag"] <= 180)]
+                         & (combined["lag"] <= target_lag)]
     subdf.index = list(range(subdf.shape[0]))
     
     start_date = subdf["reference_date"].min()
@@ -390,7 +400,7 @@ fig = plt.figure(figsize=(10, 4))
 for state, state_name in zip(combined["geo_value"].unique(), combined["state_name"].unique()):
     subdf = combined.loc[(combined["geo_value"] == state)
                          & (combined["reference_date"] >= datetime(2021, 6, 1))
-                         & (combined["lag"] <= 180)]
+                         & (combined["lag"] <= target_lag)]
     subdf.index = list(range(subdf.shape[0]))
     
     start_date = subdf["reference_date"].min()

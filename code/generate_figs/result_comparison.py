@@ -81,7 +81,7 @@ for idx, signal in enumerate(["COVID-19 cases", "CHNG Outpatient Count", "dengue
     
     delphi_df = dfs[signal].loc[ # only kept the result on the training dates 
         (dfs[signal]["tw"] == dfs[signal]["tw"].min())
-        & (dfs[signal]["report_date"].isin(epinowcast_dfs[signal]["test_date"].unique()))
+        & (dfs[signal]["report_date"].isin(nobBS_dfs[signal]["issue_date"].unique()))
         ].groupby(["lag"]).agg(
         mean=('wis', 'mean'),
         sem=('wis', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),

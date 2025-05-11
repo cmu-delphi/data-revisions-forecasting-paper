@@ -5,7 +5,7 @@
 # ----------------------------------------------------------------
 config <- list(
   # ---- Dataset metadata ----
-  data_path        = "",                # file dir
+  data_path        = "../../../data/raw/CHNG_outpatient_state_combined_df_until20230218.csv",                # file dir
   indicator        = "chng",            # Source indicator name
   value_type       = "count",           # Type of observed values
   temporal_resol   = "daily",           # Temporal resolution of data
@@ -27,5 +27,5 @@ config <- list(
   report_date_col  = "issue_date",            # Date when the value was reported
 
   # ---- Output directory ----
-  export_dir   = "./receiving"  # Directory where models and results will be saved
+  export_dir   = "../../../data/results/NobBS_result"  # Directory where models and results will be saved
 )
