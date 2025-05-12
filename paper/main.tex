@@ -109,6 +109,11 @@
 % array package and thick rules for tables
 \usepackage{array}
 
+\usepackage{graphicx}
+\usepackage{pgffor}    % enables foreach loop
+\usepackage{caption}   % better caption formatting
+
+
 % create "+" rule type for thick vertical lines
 \newcolumntype{+}{!{\vrule width 2pt}}
 
@@ -129,6 +134,8 @@
 \hline
 \noalign{\global\arrayrulewidth\savedwidth}}
 
+\newcommand{\statepdfs}{
+  al,ak,ar,az,ca,co,ct,de,fl,ga,hi,ia,id,il,in,ks,ky,la,ma,md,me,mi,mn,mo,ms,mt,nc,nd,ne,nh,nj,nm,nv,ny,oh,ok,or,pa,ri,sc,sd,tn,tx,ut,va,vt,wa,wi,wv,wy}
 
 % Remove comment for double spacing
 %\usepackage{setspace} 
@@ -214,15 +221,15 @@ Roni Rosenfeld\textsuperscript{2},
 \end{flushleft}
 % Please keep the abstract below 300 words
 \section*{Abstract}
-Epidemic data streams undergo frequent revisions due to reporting delays ("backfill") and other factors. Relying on tentative surveillance values can seriously degrade the quality of situational awareness, forecasting accuracy and decision-making. We introduce Delphi Revision Forecast (Delphi-RF), a real-time data revision forecasting\footnote{We use the term “data revision forecasting” to refer to the problem of predicting current quantities based solely on their preliminary measurements.
-We reserve the term “nowcasting” to refer to the more general problem of predicting current quantities based on any data available currently, including other data sources.} framework using nonparametric quantile regression, applicable to both counts and proportions (fractions) in public health reporting. By incorporating all available revisions up to a given observation date, Delphi-RF models revision dynamics and generates distributional forecasts of finalized surveillance values. Applied to daily COVID-19 data (insurance claims, antigen tests, confirmed cases) and weekly dengue and influenza-like illness (ILI) case counts, Delphi-RF delivers accurate revision forecasts, particularly in early reporting stages. In addition, it improves computational efficiency by more than tenfold over existing methods, making it a scalable solution for real-time public health surveillance.
+Epidemic data streams undergo frequent revisions due to reporting delays ("backfill") and other factors. Relying on tentative surveillance values can seriously degrade the quality of situational awareness, forecasting accuracy and decision-making. We introduce Delphi Revision Forecast (Delphi-RF), a real-time data revision forecasting\footnote{We use the term "data revision forecasting" to refer to the problem of predicting current quantities based solely on their preliminary measurements.
+We reserve the term "nowcasting" to refer to the more general problem of predicting current quantities based on any data available currently, including other data sources.} framework using nonparametric quantile regression, applicable to both counts and proportions (fractions) in public health reporting. By incorporating all available revisions up to a given estimation date, Delphi-RF models revision dynamics and generates distributional forecasts of finalized surveillance values. Applied to daily COVID-19 data (insurance claims, antigen tests, confirmed cases) and weekly dengue and influenza-like illness (ILI) case counts, Delphi-RF delivers accurate revision forecasts, particularly in early reporting stages. In addition, it improves computational efficiency by more than 10-100x compared to existing methods, making it a scalable solution for real-time public health surveillance.
 
 
 % Please keep the Author Summary between 150 and 200 words
 % Use first person. PLOS ONE authors please skip this step. 
 % Author Summary not valid for PLOS ONE submissions.   
 \section*{Author summary}
-Accurate and reliable forecasts of infectious disease epidemics, such as COVID-19, are essential but challenging. The presence of data revisions in public health data streams can introduce significant bias in both predictors and responses, leading to suboptimal situational awareness, preparedness, and downstream countermeasure design. To address this issue, we propose a modeling framework that leverages historical revision patterns to generate distributional forecasts of finalized surveillance values. Applicable to both count-type and fraction-type data across various temporal resolutions and epidemic surveillance data streams, our approach ensures real-time accuracy, even with only early revisions available. Moreover, our method achieves competitive or superior forecast accuracy compared to existing methods, while also demonstrating a 10-100x improvement in computational efficiency.
+Accurate and reliable forecasts of infectious disease epidemics, such as COVID-19, are essential but challenging. The presence of data revisions in public health data streams can introduce significant biases in both predictors and responses, leading to suboptimal situational awareness, preparedness, and downstream countermeasure design. To address this issue, we propose a modeling framework that leverages historical revision patterns to generate distributional forecasts of finalized surveillance values. Applicable to both count-type and fraction-type data across various temporal resolutions and epidemic surveillance data streams, our approach ensures real-time accuracy, even with only early revisions available. Moreover, our method achieves competitive or superior forecast accuracy compared to existing methods, while also demonstrating a more than 10-100x improvement in computational efficiency.
 \linenumbers
 
 % Use "Eq" instead of "Equation" for equation citations.
