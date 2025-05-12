@@ -72,7 +72,8 @@ for idx, signal in enumerate(["COVID-19 cases", "CHNG Outpatient Count", "dengue
     
     epinowcast_df = epinowcast_dfs[signal].loc[
         (epinowcast_dfs[signal]["tw"] == epinowcast_dfs[signal]["tw"].min())
-        & (epinowcast_dfs[signal]["test_date"] == epinowcast_dfs[signal]["report_date"])].groupby(["lag"]).agg(
+        # & (epinowcast_dfs[signal]["test_date"] == epinowcast_dfs[signal]["report_date"])
+        ].groupby(["lag"]).agg(
         mean=('wis', 'mean'),
         sem=('wis', lambda x: np.std(x, ddof=1) / np.sqrt(len(x))),
         quantile10=('wis', lambda x: np.quantile(x, 0.1)),         # Median (50th percentile)

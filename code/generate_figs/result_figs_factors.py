@@ -58,7 +58,7 @@ ax2.tick_params(axis='both', labelsize=20)
 
 ax1 = plt.subplot(1, 2, 2)
 sns.boxplot(df.loc[df["lag"] <= 14], x="lag", y="wis", hue="Target Level", 
-            showfliers=False, hue_order=[r"High: $\geq$ 75% quantile", "Medium: otherwise", r"Low: $\leq$ 25% quantile"])
+            showfliers=False, hue_order=[r"High: $\geq$ 75% percentile", "Medium: otherwise", r"Low: $\leq$ 25% percentile"])
 plt.xlabel("Lag (Days)", fontsize=30)
 plt.ylabel("")
 plt.ylim(0, 0.5)
