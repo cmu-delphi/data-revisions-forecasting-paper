@@ -35,8 +35,8 @@ df.loc[df["target_7dav_slope"]>1.25, "Trend"] = "Up"
 df.loc[df["target_7dav_slope"]<=0.75, "Trend"] = "Down"
 
 df["Target Level"] = "Medium: otherwise"
-df.loc[df["value_target_7dav"] <= df["value_target_7dav"].quantile(0.25), "Target Level"] = r"Low: $\leq$ 25% quantile"
-df.loc[df["value_target_7dav"] > df["value_target_7dav"].quantile(0.75), "Target Level"] = r"High: $\geq$ 75% quantile"
+df.loc[df["value_target_7dav"] <= df["value_target_7dav"].quantile(0.25), "Target Level"] = r"Low: $\leq$ 25% percentile"
+df.loc[df["value_target_7dav"] > df["value_target_7dav"].quantile(0.75), "Target Level"] = r"High: $\geq$ 75% percentile"
 
 yticks = [0, 10, 20, 30, 40, 50, 60]
 plt.figure(figsize=(18, 6))
