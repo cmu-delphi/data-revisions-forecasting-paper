@@ -6,12 +6,12 @@ Helper Functions
 @author: jingjingtang
 """
 import os
-from matplotlib import pyplot as plt
+from pathlib import Path
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
-from constants import data_dir, filtered_states, MA_POP
+from constants import filtered_states, MA_POP
 
 ## constants providing information for each data set
 
@@ -25,7 +25,7 @@ madph_config = {
     "value_col": "confirmed_case_7d_avg",
     "indicator": "ma-dph",
     "log_value_col": "log_value_7dav",
-    "log_target_col": "log_value_target",
+    "log_target_col": "log_value_target_7dav",
     "start_date": datetime(2021, 7, 1),
     "end_date": datetime(2022, 6, 24)
     }
@@ -164,7 +164,8 @@ def read_experimental_results(config, method):
         
         df = pd.read_csv(os.path.join(path, fn),
                          parse_dates=[report_date_col, refd_col]
-                         ).sort_values([report_date_col, refd_col])   
+                         ).sort_values([report_date_col, refd_col])  
+  
         df["tw"] = training_window
         df["lag"] = [(x-y).days for x, y in zip(df[report_date_col], df[refd_col])]
         df = df.loc[(df[report_date_col] >= config["start_date"])
@@ -259,3 +260,121 @@ def create_pivot_table_for_heatmap(subdf, value_type, melt=False, target="newest
         pivot_table = unpivot.pivot_table(index="lag", columns="reference_date", values=value_type)   
         return pivot_table
 
+
+
+def parse_filename(fname: str):
+    import re
+
+    pattern = re.compile(
+        r"""
+        ^(?:(?P<dir>[^/]+)/)?                       
+        (?P<basename>[a-z0-9]+(?:_[a-z0-9]+)*)_     
+        (?P<location>nat|[a-z]{2,3})_               
+        (?P<freq>daily|weekly)_                     
+        trainingwindow(?P<trainingwindow>\d+)_      
+        testingwindow(?P<testingwindow>\d+)_        
+        reflag(?P<reflag>\d+)_                      
+        lagpad(?P<lagpad>\d+)                       
+        (?:_ablation_drop_(?P<ablation>[A-Za-z0-9_]+))?   # <-- allow underscores
+        (?P<trailing>(?:_[A-Za-z][A-Za-z0-9]*[0-9.eE+-]*)*) 
+        _DelphiRF\.csv$                             
+        """,
+        re.IGNORECASE | re.VERBOSE
+    )
+
+    m = pattern.match(fname)
+    if not m:
+        return None
+    gd = m.groupdict()
+    source = gd["dir"] if gd["dir"] else gd["basename"]
+
+    out = {
+        "signal": source,
+        "location": gd["location"],
+        "temporal_resolution": gd["freq"],
+        "trainingwindow": int(gd["trainingwindow"]),
+        "testingwindow": int(gd["testingwindow"]),
+        "reflag": int(gd["reflag"]),
+        "lagpad": int(gd["lagpad"]),
+        "dropped_feature": gd.get("ablation"),
+        "gamma": 0.1,
+        "lambda": 0.1,
+    }
+
+    # ---- robust trailing hyperparam parsing ----
+    trailing = gd.get("trailing") or ""
+    if trailing:
+        tokens = [t for t in trailing.lstrip("_").split("_") if t]
+
+        # Join patterns like  name _ <number>  ->  name<number>
+        num_pat = r"[+-]?(?:\d+(?:\.\d+)?|\.\d+|(?:\d+\.?\d*)e[+-]?\d+)"
+        recombined = []
+        i = 0
+        while i < len(tokens):
+            if i + 1 < len(tokens) and re.fullmatch(num_pat, tokens[i+1], re.IGNORECASE):
+                recombined.append(tokens[i] + tokens[i+1])
+                i += 2
+            else:
+                recombined.append(tokens[i])
+                i += 1
+
+        for tok in recombined:
+            mnum = re.search(num_pat, tok, re.IGNORECASE)
+            if not mnum:
+                continue
+            key = tok[:mnum.start()]
+            val_raw = tok[mnum.start():]
+            if not key:
+                continue
+            try:
+                val = float(val_raw)
+                if val.is_integer():
+                    val = int(val)
+            except Exception:
+                val = val_raw
+            out[key] = val
+
+    return out
+
+
+
+def read_ablation_results(signal):
+    
+    base_dir = Path(os.path.join(file_dir, "ablation"))
+    all_files = list(base_dir.rglob("*.csv"))  # recursive glob    
+    pdList = []
+    for filedir in all_files:   
+        fn = str(filedir).split("ablation/")[1]
+        if ".csv" in fn and signal in fn and "ablation" in fn:
+            parsed = parse_filename(fn)
+            df = pd.read_csv(os.path.join(file_dir, "ablation", fn),
+                             parse_dates=["reference_date", "report_date"])
+            df["dropped_feature"] = parsed["dropped_feature"]
+            if signal == "madph":
+                df = df.loc[df["lag"] >= 1]
+            pdList.append(df)
+    return pd.concat(pdList)
+
+
+def read_hypertuning_results(param):
+    
+    base_dir = Path(os.path.join(file_dir, "hyper_tuning", param))
+    all_files = list(base_dir.rglob("*.csv"))  # recursive glob    
+    pdList = []
+    for filedir in all_files:   
+        fn = str(filedir).split("hyper_tuning/%s/"%param)[1]
+        parsed = parse_filename(fn)
+        df = pd.read_csv(os.path.join(file_dir, "hyper_tuning", param, fn),
+                         parse_dates=["reference_date", "report_date"])
+        df["lambda"] = parsed["lambda"]
+        df["gamma"] = parsed["gamma"]
+        df["lagpad"] = parsed["lagpad"]
+        df["signal"] = parsed["signal"]
+            
+        if parsed["signal"] == "madph":
+            df = df.loc[df["lag"] >= 1]    
+        pdList.append(df)
+
+    return pd.concat(pdList)
+        
+        
