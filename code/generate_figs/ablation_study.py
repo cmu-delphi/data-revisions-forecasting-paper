@@ -1,6 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Ablation Study
+
+@author: jingjingtang
+"""
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 from _utils_ import (madph_config, chng_count_config,
                      dengue_config, ilicases_config,
@@ -34,6 +40,7 @@ label_map = {
     "value_lags": "Dropped: Inverse lag",
     "delta_lags": "Dropped: Revision magnitude",
     "y7dav": "Dropped: 7-day moving average",
+    "sqrtscale": "Dropped: Square root levels",
     "all": "All features included"   # <-- if you want a baseline line
 }
 
@@ -53,6 +60,7 @@ color_map = {
     "value_lags": "tab:red",
     "delta_lags": "tab:purple",
     "y7dav": "tab:brown",
+    "sqrtscale": "tab:pink",
     "all": "black"   # baseline
 }
   

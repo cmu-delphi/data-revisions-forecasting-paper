@@ -356,15 +356,15 @@ def read_ablation_results(signal):
     return pd.concat(pdList)
 
 
-def read_hypertuning_results(param):
+def read_hyperparams_analysis_results(param):
     
-    base_dir = Path(os.path.join(file_dir, "hyper_tuning", param))
+    base_dir = Path(os.path.join(file_dir, "hyperparams", param))
     all_files = list(base_dir.rglob("*.csv"))  # recursive glob    
     pdList = []
     for filedir in all_files:   
-        fn = str(filedir).split("hyper_tuning/%s/"%param)[1]
+        fn = str(filedir).split("hyperparams/%s/"%param)[1]
         parsed = parse_filename(fn)
-        df = pd.read_csv(os.path.join(file_dir, "hyper_tuning", param, fn),
+        df = pd.read_csv(os.path.join(file_dir, "hyperparams", param, fn),
                          parse_dates=["reference_date", "report_date"])
         df["lambda"] = parsed["lambda"]
         df["gamma"] = parsed["gamma"]
@@ -376,5 +376,5 @@ def read_hypertuning_results(param):
         pdList.append(df)
 
     return pd.concat(pdList)
-        
+     
         
