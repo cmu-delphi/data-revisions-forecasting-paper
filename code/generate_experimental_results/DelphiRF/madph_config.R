@@ -29,7 +29,7 @@ config <- list(
   report_date_col  = "issue_date",            # Date when the value was reported
 
   # ---- Modeling parameters ----
-  lambda           = 0.08,          # Regularization for main effect
+  lambda           = LAMBDA,          # Regularization for main effect
   gamma            = GAMMA,         # Regularization for interaction term (from constants)
   lp_solver        = LP_SOLVER,     # LP solver selection (e.g., "gurobi", "glpk")
   taus             = TAUS,          # Quantile levels to estimate (from constants)

@@ -6,15 +6,22 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 
-# Load config from external file
-source("madph_config.R")
 
 # ------------------------
 # HELPER FUNCTIONS
 # ------------------------
 
-# -------------------------------------------------------------------
-# Function: prepare_data
+# Load and preprocess raw data
+load_data <- function(config) {
+  df <- read.csv(config$data_path, colClasses = setNames(rep("Date", 2), c(config$refd_col, config$report_date_col)))
+  df[[config$lag_col]] <- as.integer(difftime(df[[config$report_date_col]], 
+                                              df[[config$refd_col]], units = "days"))
+  df$reference_date <- df[[config$refd_col]]
+  df$report_date <- df[[config$report_date_col]]
+  return(df)
+}
+
+# prepare_dataß
 # Purpose : Preprocess input data for a given test window using
 #           configuration-defined column names and parameters.
 #
@@ -41,7 +48,6 @@ source("madph_config.R")
 #
 # Returns:
 #   A preprocessed and filtered data frame ready for DelphiRF modeling.
-# -------------------------------------------------------------------
 prepare_data <- function(data, test_start_date, test_end_date, config) {
   data %>%
     dplyr::filter(.data[[config$report_date_col]] < (test_start_date + config$ref_lag * 2)) %>%
@@ -56,25 +62,27 @@ prepare_data <- function(data, test_start_date, test_end_date, config) {
       lagged_term_list = config$lagged_term_list,
       value_type=config$value_type,
       temporal_resol=config$temporal_resol
-      ) %>%
+    ) %>%
     dplyr::filter(report_date < test_end_date) # only consider the test dates
 }
 
 # Run DelphiRF for a single test date and return results with timing
-run_single_test_date <- function(data, test_start_date, test_end_date, config) {
+run_single_test_date <- function(data, test_start_date, test_end_date, config,
+                                 params_list) {
   ref_lag <- config$ref_lag
   training_window <- config$training_window
   testing_window <- config$testing_window
-
+  
   pre_start <- Sys.time()
   preprocessed <- prepare_data(data, test_start_date, test_end_date, config)
   pre_end <- Sys.time()
-
+  
   run_start <- Sys.time()
   results <- DelphiRF(
     preprocessed,
     test_start_date,
     lag_pad = config$lag_pad,
+    params_list = params_list,
     training_days = training_window,
     model_save_dir = config$model_save_dir,
     indicator = config$indicator,
@@ -88,11 +96,12 @@ run_single_test_date <- function(data, test_start_date, test_end_date, config) {
     make_predictions = config$make_predictions,
   )
   run_end <- Sys.time()
-
-  results$test_date <- test_start_date
-  results$time_for_preprocessing <- as.numeric(pre_end - pre_start)
-  results$time_for_running <- as.numeric(run_end - run_start)
-
+  
+  if (dim(results)[1] > 0) {
+    results$test_date <- test_start_date
+    results$time_for_preprocessing <- as.numeric(pre_end - pre_start)
+    results$time_for_running <- as.numeric(run_end - run_start)
+  }
   return(results)
 }
 
@@ -108,12 +117,12 @@ main <- function(config) {
   
   # Get the list of locations
   locs <- unique(df$geo_value)
-
+  
   # Generate valid test dates
   valid_dates <- seq(config$start_date, config$end_date, by = "days")
   test_dates <- valid_dates[seq(1, length(valid_dates), by = config$testing_window)]
   test_dates <- c(test_dates, config$end_date + 1)
-
+  
   for (loc in locs) {
     print(loc)
     subdf <- df %>% filter(geo_value == loc)
@@ -125,7 +134,7 @@ main <- function(config) {
       cat("Running test for date:", format(test_start_date), "\n")
       run_single_test_date(subdf, test_start_date, test_end_date, config)
     })
-
+    
     # Combine and save results
     combined <- bind_rows(all_results)
     file_name <- paste0(
@@ -140,8 +149,18 @@ main <- function(config) {
     )
     write.csv(combined, file = file.path(config$model_save_dir, file_name), row.names = FALSE)
   }
-
+  
 }
 
-# Run everything
-main(config)
+
+# Load config from external file
+#source("ilinet_config.R")
+#source("dengue_config.R")
+
+#source("madph_config.R")
+#source("quidel_config.R")
+#source("chng_count_config.R")
+#source("chng_fraction_config.R")
+
+#main(config)
+
