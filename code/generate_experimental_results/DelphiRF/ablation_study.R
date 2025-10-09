@@ -5,6 +5,9 @@ library(readr)
 library(rlang)
 library(ggplot2)
 
+library(quantgen)
+library(evalcast)
+
 library(DelphiRF)
 
 source("DelphiRF_exp.R")
@@ -47,8 +50,7 @@ configs <- list(
 
 for (cfg in configs) {
   source(cfg$file)
-  config$model_save_dir <- "../../../data/ablation"
-  
+  config$model_save_dir <- "../../../data/ablation/"
   
   if (!is.null(cfg$data_path)) {
     config$data_path <- cfg$data_path
@@ -64,15 +66,13 @@ for (cfg in configs) {
     df$geo_value <- cfg$geo_value
   }
   
-  # ⬇️ here you can operate on df each time
-  
   # Get the list of locations
   locs <- unique(df$geo_value)
   
   # Generate valid test dates
   valid_dates <- seq(config$start_date, config$end_date, by = "days")
   test_dates <- valid_dates[seq(1, length(valid_dates), by = config$testing_window)]
-  #test_dates <- c(test_dates, config$end_date + 7)
+  test_dates <- c(test_dates, config$end_date + 1)
   
   
   if (config$temporal_resol == "daily") {
@@ -85,9 +85,11 @@ for (cfg in configs) {
     week_issue = WEEK_ISSUES[1],
     y7dav = Y7DAV,
     value_lags = paste0("log_value_7dav_lag", lagged_term_list),
-    delta_lags = paste0("log_delta_value_7dav_lag", lagged_term_list),
-    sqrtscale = SQRT_SCALES 
+    delta_lags = paste0("log_delta_value_7dav_lag", lagged_term_list)
   )
+  if (length(unique(config$lag_pad)) > 0){
+    covariate_groups$inv_lag <- "inv_log_lag"
+  }
   if (config$temporal_resol == "daily") {
     covariate_groups$daily_ref <- paste0(dayofweek, "_ref")
     covariate_groups$daily_issue <- paste0(dayofweek, "_issue")
@@ -103,7 +105,7 @@ for (cfg in configs) {
     if (dim(subdf)[1] < 100) next
     # Run experiments for each test window
     # Loop: Drop one group at a time
-    for (group_name in names(covariate_groups)[5]) {
+    for (group_name in names(covariate_groups)) {
       group_to_drop <- covariate_groups[[group_name]]
       covariates_used <- setdiff(params_list, group_to_drop)
       
@@ -133,5 +135,28 @@ for (cfg in configs) {
       )
       write.csv(combined, file = file.path(config$model_save_dir, file_name), row.names = FALSE)
     }
+    
+    cat("Dropping group:", "nothing", "\n")
+    
+    all_results <- lapply(1:(length(test_dates) - 1), function(i) {
+      test_start_date <- test_dates[i]
+      test_end_date <- test_dates[i+1]
+      cat("Running test for date:", format(test_start_date), "\n")
+      run_single_test_date(subdf, test_start_date, test_end_date, config, NULL)
+    })
+    
+    # Combine and save results
+    combined <- bind_rows(all_results)
+    file_name <- paste0(
+      config$indicator,
+      "_", loc,
+      "_", config$temporal_resol,
+      "_trainingwindow", config$training_window,
+      "_testingwindow", config$testing_window,
+      "_reflag", config$ref_lag,
+      "_lagpad", config$lag_pad,
+      "_DelphiRF.csv"
+    )
+    write.csv(combined, file = file.path(config$model_save_dir, file_name), row.names = FALSE)
   }  
 }
